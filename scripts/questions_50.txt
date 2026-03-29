@@ -1,0 +1,50 @@
+hi
+hello
+hey there
+tell me little bit about yourself
+give me a short intro about you
+where do you study
+what school do you go to
+what is your GPA
+when do you graduate
+what is your degree
+what coursework have you taken
+what are your strongest technical skills
+what programming languages do you use most
+what backend frameworks have you used
+what databases have you worked with
+do you have cloud experience
+what is your experience with Docker
+what is your experience with Kubernetes
+what is your experience with CI/CD
+what is your experience with observability
+what kind of AI systems have you built
+what is your RAG experience
+what is your LLM integration experience
+have you built multi-agent systems
+what are your key projects
+which project are you most proud of
+what impact did your projects have
+what was your role at Avtar
+what did you do at Niro AI
+do you have production experience
+how many years work experience do you have
+how long did you work at Avtar
+how long did you work at Niro AI
+are you more SWE or ML
+what roles are you targeting
+what locations are you open to
+are you open to relocation
+what type of company are you looking for
+what is your availability
+when can you join
+how do you approach testing
+how do you approach debugging
+how do you think about reliability
+how do you handle production incidents
+how do you communicate tradeoffs
+what are your strengths
+what are your growth areas
+summarize your background in two sentences
+why should we hire you
+can you share your resume link

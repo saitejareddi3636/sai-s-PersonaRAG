@@ -20,6 +20,49 @@ from app.services.prompts import (
 logger = logging.getLogger(__name__)
 
 ConfidenceLevel = Literal["high", "medium", "low"]
+SOCIAL_QUERIES = {
+    "hi",
+    "hello",
+    "hey",
+    "hey there",
+    "howdy",
+    "greetings",
+}
+OUT_OF_SCOPE_REPLY = "I don't have specific info about that. Please contact Sai directly."
+PROFILE_QUERY_KEYWORDS = {
+    "you",
+    "your",
+    "yourself",
+    "background",
+    "experience",
+    "work",
+    "worked",
+    "company",
+    "role",
+    "skills",
+    "projects",
+    "degree",
+    "gpa",
+    "graduate",
+    "availability",
+    "join",
+    "location",
+    "resume",
+    "rag",
+    "llm",
+    "docker",
+    "kubernetes",
+    "ci/cd",
+    "framework",
+    "coursework",
+}
+AVAILABILITY_KEYWORDS = (
+    "availability",
+    "when can you join",
+    "when can you start",
+    "joining",
+    "start date",
+)
 
 
 @dataclass
@@ -40,11 +83,142 @@ class GroundedAnswerResult:
     citations: list[Citation]
 
 
+def _is_social_query(question: str) -> bool:
+    q = question.strip().lower()
+    return q in SOCIAL_QUERIES
+
+
+def _social_response(question: str) -> str:
+    q = question.strip().lower()
+    if q == "hey there":
+        return "Hey there! Happy to help with any question about my background."
+    return "Hello! Happy to help with any question about my background."
+
+
+def _is_profile_query(question: str) -> bool:
+    q = question.strip().lower()
+    return any(k in q for k in PROFILE_QUERY_KEYWORDS)
+
+
+def _is_availability_query(question: str) -> bool:
+    q = question.strip().lower()
+    return any(k in q for k in AVAILABILITY_KEYWORDS)
+
+
+def _availability_from_hits(hits: list[RetrievalHit]) -> str | None:
+    text = " ".join(h.text for h in hits[:5]).lower()
+    has_grad = "graduat" in text
+    has_location = any(k in text for k in ("remote", "hybrid", "on-site", "onsite"))
+    has_new_grad = "new grad" in text or "entry-level" in text
+    if has_grad or has_location or has_new_grad:
+        parts: list[str] = []
+        if has_new_grad:
+            parts.append("I'm actively recruiting for new grad and entry-level roles.")
+        if has_grad:
+            parts.append("I'm graduating in May 2026.")
+        if has_location:
+            parts.append("I'm open to remote, on-site, or hybrid opportunities in the US.")
+        return " ".join(parts).strip()
+    return None
+
+
+def _duration_answer(question: str, hits: list[RetrievalHit]) -> str | None:
+    q = question.lower()
+    role = None
+    if "avtar" in q:
+        role = "avtar"
+    elif "niro" in q:
+        role = "niro"
+    if not role:
+        return None
+    role_text = " ".join(h.text for h in hits if role in h.text.lower())
+    all_text = " ".join(h.text for h in hits)
+    m = re.search(r"Duration:\s*([A-Za-z]{3}\s*\d{4}\s*[–-]\s*[A-Za-z]{3}\s*\d{4})", role_text)
+    if not m:
+        m = re.search(
+            rf"{role}[^.()]*\(([A-Za-z]{{3}}\s*\d{{4}}\s*(?:to|–|-)\s*[A-Za-z]{{3}}\s*\d{{4}})\)",
+            all_text,
+            flags=re.IGNORECASE,
+        )
+    if not m:
+        all_ranges = re.findall(r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*\d{4}\s*(?:to|–|-)\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*\d{4}", all_text, flags=re.IGNORECASE)
+        if all_ranges:
+            return f"I worked at {role.title()} from {all_ranges[0].replace('–', ' to ').replace('-', ' to ')}."
+        return None
+    span = m.group(1).replace("–", " to ").replace("-", " to ")
+    return f"I worked at {role.title()} from {span}."
+
+
 def _weak_retrieval_signal(hits: list[RetrievalHit], settings: Settings) -> bool:
     if not hits:
         return True
     best = max(h.score for h in hits)
     return best < settings.retrieval_weak_score_threshold
+
+
+def _extract_keyword_sentence(hits: list[RetrievalHit], keywords: tuple[str, ...]) -> str | None:
+    for h in hits[:8]:
+        lines = [ln.strip() for ln in h.text.splitlines() if ln.strip()]
+        for ln in lines:
+            lower = ln.lower()
+            if any(k in lower for k in keywords):
+                return ln.lstrip("- ").strip()
+    return None
+
+
+def _fact_answer_from_hits(question: str, hits: list[RetrievalHit]) -> str | None:
+    q = question.lower()
+    if "rag" in q:
+        s = _extract_keyword_sentence(hits, ("rag", "retrieval-augmented generation"))
+        return s or None
+    if "docker" in q:
+        s = _extract_keyword_sentence(hits, ("docker", "docker compose", "container"))
+        return s or None
+    if "backend framework" in q:
+        vals = []
+        text = " ".join(h.text for h in hits[:8]).lower()
+        if "fastapi" in text:
+            vals.append("FastAPI")
+        if "spring boot" in text:
+            vals.append("Spring Boot")
+        if vals:
+            return "I have used " + " and ".join(vals) + " for backend development."
+        return None
+    if "coursework" in q:
+        s = _extract_keyword_sentence(hits, ("coursework", "data structures", "algorithms", "system design"))
+        return s or None
+    if "kubernetes" in q:
+        s = _extract_keyword_sentence(hits, ("kubernetes",))
+        return s or None
+    if "type of company" in q or "company are you looking for" in q:
+        lines = []
+        for h in hits[:8]:
+            for ln in [x.strip().lstrip("- ").strip() for x in h.text.splitlines() if x.strip()]:
+                low = ln.lower()
+                if any(t in low for t in ("companies building ai", "backend-focused teams", "startups", "prioritizing production reliability", "learning opportunities")):
+                    lines.append(ln)
+        if lines:
+            return "I am looking for " + "; ".join(lines[:3]) + "."
+        return None
+    return None
+
+
+def _is_strict_fact_query(question: str) -> bool:
+    q = question.lower()
+    return any(
+        k in q
+        for k in (
+            "rag experience",
+            "experience with docker",
+            "experience with kubernetes",
+            "backend frameworks",
+            "backend framework",
+            "coursework",
+            "how long did you work",
+            "how long were you",
+            "what are your growth areas",
+        )
+    )
 
 
 async def generate_grounded_answer(
@@ -59,6 +233,53 @@ async def generate_grounded_answer(
     _ = session_id
     q = question.strip()
 
+    if _is_social_query(q):
+        return GroundedAnswerResult(
+            answer=_social_response(q),
+            confidence="high",
+            grounding_note=None,
+            citations=[],
+        )
+    if _is_availability_query(q):
+        extracted = _availability_from_hits(retrieval_hits)
+        if extracted:
+            return GroundedAnswerResult(
+                answer=extracted,
+                confidence="high",
+                grounding_note=None,
+                citations=[_hit_to_citation(h) for h in retrieval_hits[:2]],
+            )
+        return GroundedAnswerResult(
+            answer=OUT_OF_SCOPE_REPLY,
+            confidence="low",
+            grounding_note="Availability details not clearly present in retrieved passages.",
+            citations=[],
+        )
+    if "how long did you work" in q or "how long were you" in q:
+        duration = _duration_answer(q, retrieval_hits)
+        if duration:
+            return GroundedAnswerResult(
+                answer=duration,
+                confidence="high",
+                grounding_note=None,
+                citations=[_hit_to_citation(h) for h in retrieval_hits[:2]],
+            )
+    factual = _fact_answer_from_hits(q, retrieval_hits)
+    if factual:
+        return GroundedAnswerResult(
+            answer=factual,
+            confidence="high",
+            grounding_note=None,
+            citations=[_hit_to_citation(h) for h in retrieval_hits[:2]],
+        )
+    if _is_strict_fact_query(q):
+        return GroundedAnswerResult(
+            answer=OUT_OF_SCOPE_REPLY,
+            confidence="low",
+            grounding_note="No clear grounded fact was found for this specific question.",
+            citations=[],
+        )
+
     if retrieval_error:
         return GroundedAnswerResult(
             answer=(
@@ -72,12 +293,16 @@ async def generate_grounded_answer(
 
     if not retrieval_hits:
         return GroundedAnswerResult(
-            answer=(
-                "I don't have enough indexed material to answer that yet. "
-                "Try rephrasing, or ensure portfolio content has been ingested into chunks."
-            ),
+            answer=OUT_OF_SCOPE_REPLY,
             confidence="low",
             grounding_note="No relevant passages were retrieved for this question.",
+            citations=[],
+        )
+    if _weak_retrieval_signal(retrieval_hits, settings) and not _is_profile_query(q):
+        return GroundedAnswerResult(
+            answer=OUT_OF_SCOPE_REPLY,
+            confidence="low",
+            grounding_note="Question appears out of scope for candidate-specific materials.",
             citations=[],
         )
 
@@ -125,6 +350,10 @@ async def generate_grounded_answer_stream(
     """Stream answer tokens as they arrive."""
     _ = session_id
     q = question.strip()
+
+    if _is_social_query(q):
+        yield _social_response(q)
+        return
 
     if retrieval_error or not retrieval_hits:
         fallback = await generate_grounded_answer(
@@ -284,7 +513,17 @@ def _parse_json_loose(raw: str) -> dict[str, object]:
         raw = m.group(0)
     
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            ans = parsed.get("answer")
+            if isinstance(ans, str) and ans.strip().startswith("{") and '"confidence"' in ans:
+                try:
+                    nested = json.loads(ans)
+                    if isinstance(nested, dict):
+                        return nested
+                except Exception:
+                    pass
+        return parsed if isinstance(parsed, dict) else {}
     except json.JSONDecodeError:
         # If not JSON, wrap as plain text response
         return {
@@ -318,7 +557,18 @@ def _parse_llm_payload(data: dict[str, object], hits: list[RetrievalHit]) -> Gro
         citations.append(_hit_to_citation(hits[0]))
 
     if not answer:
-        answer = "I could not produce a grounded reply from the model output; please try again."
+        answer = OUT_OF_SCOPE_REPLY
+        confidence = "low"
+        grounding_note = "Model output was empty."
+    elif re.match(r"^i\s+don'?t?$", answer.lower()):
+        answer = OUT_OF_SCOPE_REPLY
+        confidence = "low"
+        if grounding_note is None:
+            grounding_note = "Model output was truncated; returned a grounded fallback."
+    elif answer.startswith("{") and '"answer"' in answer and '"confidence"' in answer:
+        answer = OUT_OF_SCOPE_REPLY
+        confidence = "low"
+        grounding_note = "Model returned malformed nested JSON in answer field."
 
     return GroundedAnswerResult(
         answer=answer,

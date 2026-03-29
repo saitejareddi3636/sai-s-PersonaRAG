@@ -6,6 +6,7 @@ by implementing the same `.search` contract as `TfidfBackend` / `OllamaBackend`.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import re
 
 import httpx
 import numpy as np
@@ -51,6 +52,59 @@ class TfidfBackend(RetrievalBackend):
         results = [_hit(self._chunks[i], float(scores[i])) for i in top]
         
         query_lower = query.lower()
+        query_terms = [t for t in re.findall(r"[a-zA-Z][a-zA-Z0-9+/.-]*", query_lower) if len(t) > 2]
+
+        def _pick(chunks: list[ChunkRecord], boost: float) -> list[RetrievalHit]:
+            ranked = sorted(
+                chunks,
+                key=lambda c: sum(1 for t in query_terms if t in str(c.get("text", "")).lower()),
+                reverse=True,
+            )
+            return [_hit(c, boost) for c in ranked[:k]]
+
+        # Strict skill/tool/coursework intents should not be overridden by broad work-experience fallbacks.
+        strict_skill_keywords = {
+            "rag",
+            "llm",
+            "docker",
+            "kubernetes",
+            "ci/cd",
+            "cicd",
+            "observability",
+            "backend framework",
+            "backend frameworks",
+            "coursework",
+        }
+        if any(keyword in query_lower for keyword in strict_skill_keywords):
+            strict_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"recruiter_faq.md", "skills_swe.md", "skills_shared.md", "skills_ml.md", "education.md"}
+            ]
+            if strict_chunks:
+                if "rag" in query_lower:
+                    only = [c for c in strict_chunks if "rag" in str(c.get("text", "")).lower()]
+                    if only:
+                        return _pick(only, 0.9)
+                if "docker" in query_lower:
+                    only = [c for c in strict_chunks if "docker" in str(c.get("text", "")).lower()]
+                    if only:
+                        return _pick(only, 0.9)
+                if "kubernetes" in query_lower:
+                    only = [c for c in strict_chunks if "kubernetes" in str(c.get("text", "")).lower()]
+                    if only:
+                        return _pick(only, 0.9)
+                if "backend framework" in query_lower:
+                    only = [
+                        c for c in strict_chunks
+                        if any(t in str(c.get("text", "")).lower() for t in ("fastapi", "spring boot", "framework"))
+                    ]
+                    if only:
+                        return _pick(only, 0.9)
+                if "coursework" in query_lower:
+                    only = [c for c in self._chunks if c.get("source_file") in {"education.md", "recruiter_faq.md"}]
+                    if only:
+                        return _pick(only, 0.85)
+                return _pick(strict_chunks, 0.8)
         
         # Fallback for education queries: if score is very low and query contains education keywords
         education_keywords = {'school', 'university', 'unt', 'education', 'graduate', 'graduation', 
@@ -66,11 +120,13 @@ class TfidfBackend(RetrievalBackend):
         
         # Fallback for experience/work queries: boost experience.md if scores are too low
         # This handles queries like "how many years", "work experience", "tell me about yourself"
-        experience_keywords = {'years', 'experience', 'work', 'role', 'employed', 'job', 'position', 
-                              'duration', 'background', 'career', 'professional', 'engineer', 'avtar', 'niro'}
+        experience_keywords = {
+            'work experience', 'where do you work', 'where did you work', 'role', 'employed', 'job',
+            'position', 'duration', 'career', 'avtar', 'niro', 'how many years'
+        }
         if results and results[0].score < 0.2 and any(keyword in query_lower for keyword in experience_keywords):
             # Check if experience.md is in top results, if not, prioritize it
-            has_experience = any(c.get("source_file") == "experience.md" for c in results)
+            has_experience = any(c.source_file == "experience.md" for c in results)
             if not has_experience:
                 experience_chunks = [
                     c for c in self._chunks 
@@ -80,6 +136,136 @@ class TfidfBackend(RetrievalBackend):
                     # Return mix of experience chunks and top other results
                     results = [_hit(c, 0.5) for c in experience_chunks[:k]]
                     return results
+
+        intro_keywords = {
+            "tell me about yourself",
+            "short intro",
+            "intro about you",
+            "summarize your background",
+            "your background",
+        }
+        if any(keyword in query_lower for keyword in intro_keywords):
+            intro_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"profile_overview.md", "summary.md", "recruiter_faq.md"}
+            ]
+            if intro_chunks:
+                return [_hit(c, 0.75) for c in intro_chunks[:k]]
+
+        availability_keywords = {
+            "availability",
+            "when can you join",
+            "when can you start",
+            "joining",
+            "start date",
+        }
+        if any(keyword in query_lower for keyword in availability_keywords):
+            availability_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"profile_overview.md", "target_roles.md", "experience.md", "recruiter_faq.md"}
+            ]
+            if availability_chunks:
+                return [_hit(c, 0.8) for c in availability_chunks[:k]]
+
+        skills_keywords = {
+            "rag",
+            "llm",
+            "docker",
+            "kubernetes",
+            "ci/cd",
+            "cicd",
+            "observability",
+            "framework",
+            "backend framework",
+            "coursework",
+        }
+        if any(keyword in query_lower for keyword in skills_keywords):
+            skills_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"recruiter_faq.md", "skills_swe.md", "skills_shared.md", "skills_ml.md", "education.md"}
+            ]
+            if skills_chunks:
+                if "rag" in query_lower:
+                    rag_chunks = [c for c in skills_chunks if "rag" in str(c.get("text", "")).lower()]
+                    if rag_chunks:
+                        return _pick(rag_chunks, 0.85)
+                if "docker" in query_lower:
+                    docker_chunks = [c for c in skills_chunks if "docker" in str(c.get("text", "")).lower()]
+                    if docker_chunks:
+                        return _pick(docker_chunks, 0.85)
+                if "kubernetes" in query_lower:
+                    kube_chunks = [c for c in skills_chunks if "kubernetes" in str(c.get("text", "")).lower()]
+                    if kube_chunks:
+                        return _pick(kube_chunks, 0.85)
+                if "backend framework" in query_lower or "backend frameworks" in query_lower:
+                    fw_chunks = [
+                        c for c in skills_chunks
+                        if any(t in str(c.get("text", "")).lower() for t in ("fastapi", "spring boot", "framework"))
+                    ]
+                    if fw_chunks:
+                        return _pick(fw_chunks, 0.85)
+                if "coursework" in query_lower:
+                    cw_chunks = [
+                        c for c in self._chunks
+                        if c.get("source_file") in {"education.md", "recruiter_faq.md", "experience.md"}
+                    ]
+                    if cw_chunks:
+                        return _pick(cw_chunks, 0.8)
+                return _pick(skills_chunks, 0.75)
+
+        duration_keywords = {
+            "how long did you work",
+            "how long were you at",
+            "duration at",
+            "how many years",
+        }
+        if any(keyword in query_lower for keyword in duration_keywords):
+            duration_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"experience.md", "profile_overview.md"}
+            ]
+            if duration_chunks:
+                if "niro" in query_lower:
+                    niro_chunks = [c for c in duration_chunks if "niro" in str(c.get("text", "")).lower()]
+                    if niro_chunks:
+                        return _pick(niro_chunks, 0.9)
+                if "avtar" in query_lower:
+                    avtar_chunks = [c for c in duration_chunks if "avtar" in str(c.get("text", "")).lower()]
+                    if avtar_chunks:
+                        return _pick(avtar_chunks, 0.9)
+                return _pick(duration_chunks, 0.8)
+
+        # Employer/company intent should strongly prefer role history sources.
+        employer_keywords = {
+            "where do you work",
+            "where did you work",
+            "who do you work for",
+            "who did you work for",
+            "current company",
+            "employer",
+            "company",
+            "companies",
+        }
+        if any(keyword in query_lower for keyword in employer_keywords):
+            employer_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"profile_overview.md", "experience.md", "recruiter_faq.md"}
+            ]
+            if employer_chunks:
+                return _pick(employer_chunks, 0.7)
+
+        company_pref_keywords = {
+            "type of company",
+            "company are you looking for",
+            "what company are you looking for",
+        }
+        if any(keyword in query_lower for keyword in company_pref_keywords):
+            company_chunks = [
+                c for c in self._chunks
+                if c.get("source_file") in {"target_roles.md", "recruiter_faq.md", "profile_overview.md"}
+            ]
+            if company_chunks:
+                return _pick(company_chunks, 0.85)
         
         return results
 

@@ -17,7 +17,7 @@ GREETING DETECTION - Respond naturally WITHOUT knowledge base passages for ONLY:
 FOR ALL OTHER QUESTIONS - ABSOLUTE RULES:
 1. ONLY answer using information explicitly in the provided passages
 2. Extract exact facts from the passages - don't invent, generalize, or round numbers
-3. If asked something not in the passage, say "I don't have that information in my materials"
+3. If asked something not in the passage, say "I don't have specific info about that. Please contact Sai directly."
 4. REFUSE to answer if passages don't support the question
 5. Quote the passage content when possible - don't rephrase beyond what's written
 
@@ -31,7 +31,7 @@ CONFIDENCE LEVELS:
 - "medium": answer is supported but may need clarification
 - "low": answer has limited passage support or contains inferred information
 
-IMPORTANT: Always respond with valid JSON: {{"answer": "...", "confidence": "high/medium/low", "grounding_note": null_or_string, "cited_chunk_ids": [...]}}"""
+IMPORTANT: Always respond with valid JSON: {{"answer": "...", "confidence": "high/medium/low", "grounding_note": null, "cited_chunk_ids": ["id1"]}}"""
 
 USER_PROMPT_TEMPLATE = """Context from candidate materials:
 
@@ -39,7 +39,7 @@ USER_PROMPT_TEMPLATE = """Context from candidate materials:
 {conversation_prefix}Question: {question}
 
 RESPOND AS JSON (required):
-{{"answer": "your detailed reply", "confidence": "high/medium/low", "grounding_note": null_or_string, "cited_chunk_ids": ["id1", "id2"]}}
+{{"answer": "your detailed reply", "confidence": "high/medium/low", "grounding_note": null, "cited_chunk_ids": ["id1", "id2"]}}
 
 IMPORTANT: Your response MUST be valid JSON that can be parsed. No markdown, no extra text."""
 
