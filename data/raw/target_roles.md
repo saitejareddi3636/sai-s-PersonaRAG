@@ -1,34 +1,34 @@
-# Target roles
+# Target Roles & Positioning
 
-This file steers retrieval toward honest job-search intent. Update it when your goals change.
+Computer Science student, expected graduation May 2026. Actively recruiting for new grad / entry-level roles.
 
-## Role families of interest
+## Primary Targets
 
-- [e.g. Backend engineer — replace]
-- [e.g. ML platform / infrastructure — replace]
-- [Add or remove bullets]
+- **Software Engineer (new grad)** – Backend systems, APIs, microservices
+- **Backend Engineer (new grad)** – REST APIs, databases, real-time systems, infrastructure
+- **AI Engineer (new grad)** – LLM integration, RAG, agents, full-stack AI
+- **ML Engineer (new grad)** – Model deployment, inference optimization, evaluation
 
-## Seniority
+## Why You Should Consider Me
 
-[Expected level: e.g. mid-level, senior, staff — replace with your target. Briefly note any flexibility.]
+**Production systems experience:** Built real-time voice AI at scale, multi-agent systems with guardrails, full-stack RAG applications, and backend services handling high volume.
 
-## Work arrangement
+**Backend + AI strengths:** Unusual combination—strong in both systems design (FastAPI, Spring Boot, databases) and AI/ML (RAG, agents, structured generation). Best fit for roles where both matter.
 
-- **Location:** [On-site city / hybrid / remote / open to multiple — replace]
-- **Time zones or regions:** [Constraints if any — replace]
+**Shipped projects:** 7 complete end-to-end projects (Open Claw, Enterprise Support Copilot, Customer Feedback Intelligence, Voice QA Bot, Event Organizer Platform, Client Onboarding/Billing System, Code Time).
 
-## Domain preferences
+**Technical depth:** Python, Java, TypeScript, SQL across ML/backend/frontend. Docker, AWS, Kubernetes, CI/CD. Debugging discipline and reliability mindset.
 
-- [Industry or product type you prefer — replace]
-- [Industries you prefer to avoid — replace if comfortable stating]
+## Ideal Opportunities
 
-## Compensation and logistics (optional for retrieval)
+- Companies building AI products (RAG, agents, voice)
+- Backend-focused teams needing ML exposure
+- Startups where full-stack capability matters
+- Teams prioritizing production reliability and testing
+- Role with room for impact and learning on day one
 
-*Include only what you are willing to surface in an assistant. Omit this subsection entirely if you prefer not to.*
+## Roles NOT a fit
 
-- **Comp:** [Range, currency, or “Discuss in conversation” — replace or delete subsection]
-- **Visa / sponsorship:** [Status or “Not applicable” — replace or delete]
-
-## Non-goals (optional)
-
-[Roles or environments you are not seeking. Helps the assistant give accurate answers without sounding negative. Replace or remove section.]
+- Pure ML research (prefer systems/engineering focus)
+- IC roles without room for growth and learning
+- Environments prioritizing legacy systems over new problems

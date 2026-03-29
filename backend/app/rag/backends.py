@@ -1,6 +1,6 @@
 """
 Pluggable retrieval backends. Swap implementations or add a vector DB client later
-by implementing the same `.search` contract as `TfidfBackend` / `OpenAIBackend`.
+by implementing the same `.search` contract as `TfidfBackend` / `OllamaBackend`.
 """
 
 from __future__ import annotations
@@ -36,6 +36,8 @@ class TfidfBackend(RetrievalBackend):
             max_features=max_features,
             stop_words="english",
             ngram_range=(1, 2),
+            min_df=1,
+            max_df=0.95,
         )
         self._matrix = self._vectorizer.fit_transform(texts)
 
@@ -46,23 +48,54 @@ class TfidfBackend(RetrievalBackend):
         scores = cosine_similarity(q, self._matrix).ravel()
         k = min(k, len(scores))
         top = np.argsort(-scores)[:k]
-        return [_hit(self._chunks[i], float(scores[i])) for i in top]
+        results = [_hit(self._chunks[i], float(scores[i])) for i in top]
+        
+        query_lower = query.lower()
+        
+        # Fallback for education queries: if score is very low and query contains education keywords
+        education_keywords = {'school', 'university', 'unt', 'education', 'graduate', 'graduation', 
+                            'degree', 'study', 'college', 'coursework', 'gpa', 'student'}
+        if results and results[0].score < 0.01 and any(keyword in query_lower for keyword in education_keywords):
+            education_chunks = [
+                c for c in self._chunks 
+                if c.get("source_file") == "education.md"
+            ]
+            if education_chunks:
+                results = [_hit(c, 0.5) for c in education_chunks[:k]]
+                return results
+        
+        # Fallback for experience/work queries: boost experience.md if scores are too low
+        # This handles queries like "how many years", "work experience", "tell me about yourself"
+        experience_keywords = {'years', 'experience', 'work', 'role', 'employed', 'job', 'position', 
+                              'duration', 'background', 'career', 'professional', 'engineer', 'avtar', 'niro'}
+        if results and results[0].score < 0.2 and any(keyword in query_lower for keyword in experience_keywords):
+            # Check if experience.md is in top results, if not, prioritize it
+            has_experience = any(c.get("source_file") == "experience.md" for c in results)
+            if not has_experience:
+                experience_chunks = [
+                    c for c in self._chunks 
+                    if c.get("source_file") == "experience.md"
+                ]
+                if experience_chunks:
+                    # Return mix of experience chunks and top other results
+                    results = [_hit(c, 0.5) for c in experience_chunks[:k]]
+                    return results
+        
+        return results
 
 
-class OpenAIBackend(RetrievalBackend):
-    """Embedding + cosine similarity using the OpenAI embeddings HTTP API."""
+class OllamaBackend(RetrievalBackend):
+    """Embedding + cosine similarity using local Ollama embeddings API."""
 
     def __init__(
         self,
         chunks: list[ChunkRecord],
         *,
-        api_key: str,
         model: str,
         base_url: str,
         timeout_s: float = 120.0,
     ) -> None:
         self._chunks = chunks
-        self._api_key = api_key
         self._model = model
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout_s
@@ -74,7 +107,7 @@ class OpenAIBackend(RetrievalBackend):
         if not texts:
             return np.zeros((0, 0))
         out: list[list[float]] = []
-        batch_size = 64
+        batch_size = 32
         with httpx.Client(timeout=self._timeout) as client:
             for i in range(0, len(texts), batch_size):
                 batch = texts[i : i + batch_size]
@@ -83,19 +116,18 @@ class OpenAIBackend(RetrievalBackend):
         return np.array(out, dtype=np.float64)
 
     def _embed_strings(self, client: httpx.Client, texts: list[str]) -> list[list[float]]:
-        url = f"{self._base_url}/embeddings"
-        r = client.post(
-            url,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-            json={"model": self._model, "input": texts},
-        )
-        r.raise_for_status()
-        data = r.json()["data"]
-        ordered = sorted(data, key=lambda d: d["index"])
-        return [item["embedding"] for item in ordered]
+        url = f"{self._base_url}/api/embed"
+        vecs: list[list[float]] = []
+        for text in texts:
+            r = client.post(
+                url,
+                json={"model": self._model, "input": text},
+            )
+            r.raise_for_status()
+            data = r.json()
+            embedding = data.get("embedding", [])
+            vecs.append(embedding)
+        return vecs
 
     def search(self, query: str, k: int) -> list[RetrievalHit]:
         if not self._chunks:
@@ -133,19 +165,14 @@ def build_backend(
     name: str,
     chunks: list[ChunkRecord],
     *,
-    openai_api_key: str | None,
-    openai_embedding_model: str,
-    openai_base_url: str,
+    ollama_embed_model: str,
+    ollama_base_url: str,
 ) -> RetrievalBackend:
-    key = (openai_api_key or "").strip()
-    if name == "openai":
-        if not key:
-            raise ValueError("OPENAI_API_KEY is required when RETRIEVAL_BACKEND=openai")
-        return OpenAIBackend(
+    if name == "ollama":
+        return OllamaBackend(
             chunks,
-            api_key=key,
-            model=openai_embedding_model,
-            base_url=openai_base_url,
+            model=ollama_embed_model,
+            base_url=ollama_base_url,
         )
     if name == "tfidf":
         return TfidfBackend(chunks)

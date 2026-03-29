@@ -9,6 +9,19 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional id to continue a short multi-turn chat; omit to start a new session.",
     )
+    include_tts: bool = Field(
+        default=False,
+        description="Optional: if True, backend will synthesize audio for the answer (requires TTS service)",
+    )
+
+
+class AudioMetadata(BaseModel):
+    """Optional audio metadata for synthesized answer."""
+
+    audio_url: str | None = Field(None, description="URL to access synthesized audio")
+    audio_path: str | None = Field(None, description="Internal file path (reference)")
+    duration_ms: int | None = Field(None, description="Duration in milliseconds")
+    provider: str = Field(..., description="TTS provider (mock, local-f5-tts, etc.)")
 
 
 class RetrievalHitSchema(BaseModel):
@@ -23,14 +36,9 @@ class RetrievalHitSchema(BaseModel):
 
 
 class SourceCitation(BaseModel):
-    """Structured citation for passages the answer relied on."""
+    """Clean citation showing where answer came from."""
 
-    chunk_id: str
-    source_file: str
-    section_title: str
-    content_type: str
-    score: float = Field(..., description="Retrieval relevance score for this chunk")
-    excerpt: str = Field(..., description="Short excerpt from the chunk text")
+    excerpt: str = Field(..., description="The actual quote/text referenced")
 
 
 class ChatResponse(BaseModel):
@@ -51,11 +59,7 @@ class ChatResponse(BaseModel):
         default=None,
         description="Use this on the next request to continue the same bounded conversation.",
     )
-    retrieval: list[RetrievalHitSchema] = Field(
-        default_factory=list,
-        description="Top-k retrieved chunks (for inspection / debugging)",
-    )
-    retrieval_error: str | None = Field(
+    audio: AudioMetadata | None = Field(
         None,
-        description="Set when the chunk index could not be loaded",
+        description="Optional audio synthesis metadata (when include_tts=True and synthesis succeeded)",
     )

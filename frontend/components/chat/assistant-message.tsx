@@ -1,4 +1,5 @@
 import type { ChatResponse } from "@/lib/api";
+import { AudioPlayer } from "./audio-player";
 
 type AssistantMessageProps = {
   payload: ChatResponse;
@@ -11,7 +12,7 @@ const confidenceLabel: Record<ChatResponse["confidence"], string> = {
 };
 
 export function AssistantMessage({ payload }: AssistantMessageProps) {
-  const { answer, confidence, grounding_note, sources, retrieval_error } = payload;
+  const { answer, confidence, grounding_note, sources, retrieval_error, audio } = payload;
   const hasSources = sources && sources.length > 0;
 
   return (
@@ -39,6 +40,8 @@ export function AssistantMessage({ payload }: AssistantMessageProps) {
         <p className="whitespace-pre-wrap">{answer}</p>
       </div>
 
+      {audio?.audio_url && <AudioPlayer audio={audio} />}
+
       {retrieval_error ? (
         <p
           className="mt-3 rounded-lg border border-zinc-200 bg-zinc-100/80 px-3 py-2 text-xs text-zinc-800 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
@@ -58,17 +61,13 @@ export function AssistantMessage({ payload }: AssistantMessageProps) {
             Based on
           </p>
           <ul className="mt-2 space-y-2">
-            {sources.map((s) => (
+            {sources.map((s, idx) => (
               <li
-                key={s.chunk_id}
+                key={`source-${idx}`}
                 className="rounded-lg border border-zinc-200/60 bg-white/80 px-3 py-2 text-xs dark:border-zinc-700/60 dark:bg-zinc-950/50"
               >
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                  {s.source_file}
-                  {s.section_title ? ` · ${s.section_title}` : ""}
-                </span>
                 {s.excerpt ? (
-                  <p className="mt-1 leading-relaxed text-zinc-600 dark:text-zinc-400">{s.excerpt}</p>
+                  <p className="leading-relaxed text-zinc-700 dark:text-zinc-300">{s.excerpt}</p>
                 ) : null}
               </li>
             ))}

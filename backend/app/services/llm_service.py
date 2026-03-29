@@ -81,10 +81,6 @@ async def generate_grounded_answer(
             citations=[],
         )
 
-    api_key = (settings.openai_api_key or "").strip()
-    if not api_key:
-        return _fallback_without_llm(q, retrieval_hits, settings, conversation_history=conversation_history)
-
     context_block = format_context_block(retrieval_hits)
     conv = format_conversation_prefix(conversation_history)
     user_prompt = USER_PROMPT_TEMPLATE.format(
@@ -99,16 +95,15 @@ async def generate_grounded_answer(
         )
 
     try:
-        payload = await _call_openai_chat(
-            api_key=api_key,
-            base_url=settings.openai_base_url,
-            model=settings.openai_chat_model,
+        payload = await _call_ollama_chat(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_chat_model,
             system=SYSTEM_PROMPT,
             user=user_prompt,
         )
         return _parse_llm_payload(payload, retrieval_hits)
     except Exception as e:
-        logger.exception("OpenAI chat failed: %s", e)
+        logger.exception("Ollama chat failed: %s", e)
         return _fallback_without_llm(
             q,
             retrieval_hits,
@@ -118,6 +113,55 @@ async def generate_grounded_answer(
         )
 
 
+async def generate_grounded_answer_stream(
+    question: str,
+    session_id: str | None,
+    *,
+    retrieval_hits: list[RetrievalHit],
+    retrieval_error: str | None,
+    settings: Settings,
+    conversation_history: str | None = None,
+):
+    """Stream answer tokens as they arrive."""
+    _ = session_id
+    q = question.strip()
+
+    if retrieval_error or not retrieval_hits:
+        fallback = await generate_grounded_answer(
+            question, session_id,
+            retrieval_hits=retrieval_hits,
+            retrieval_error=retrieval_error,
+            settings=settings,
+            conversation_history=conversation_history,
+        )
+        yield fallback.answer
+        return
+
+    context_block = format_context_block(retrieval_hits)
+    conv = format_conversation_prefix(conversation_history)
+    user_prompt = USER_PROMPT_TEMPLATE.format(
+        context_block=context_block,
+        conversation_prefix=conv,
+        question=q,
+    )
+
+    try:
+        buffer = ""
+        async for chunk in _call_ollama_chat_stream(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_chat_model,
+            system=SYSTEM_PROMPT,
+            user=user_prompt,
+        ):
+            msg = chunk.get("message", {}).get("content", "")
+            if msg:
+                buffer += msg
+                yield msg
+    except Exception as e:
+        logger.exception("Stream error: %s", e)
+        yield f" [Error: {e}]"
+
+
 def _fallback_without_llm(
     question: str,
     hits: list[RetrievalHit],
@@ -125,11 +169,11 @@ def _fallback_without_llm(
     extra_note: str | None = None,
     conversation_history: str | None = None,
 ) -> GroundedAnswerResult:
-    """Honest excerpt-style summary when no API key or LLM failure."""
+    """Honest excerpt-style summary when LLM fails."""
     cites = [_hit_to_citation(h) for h in hits[:5]]
     parts = [
         "Here is what the indexed portfolio passages contain that is closest to your question "
-        f'("{question}"). A full LLM summary is not configured (set OPENAI_API_KEY) or the model request failed.'
+        f'("{question}"). A full LLM summary is not available right now (Ollama connection failed or service unavailable).'
     ]
     if conversation_history and conversation_history.strip():
         clip = conversation_history.strip()
@@ -146,7 +190,7 @@ def _fallback_without_llm(
     conf: ConfidenceLevel = "medium" if hits else "low"
     if _weak_retrieval_signal(hits, settings):
         conf = "low"
-    gn = extra_note or "Excerpt-only mode without LLM synthesis."
+    gn = extra_note or "Excerpt-only mode; LLM unavailable."
     return GroundedAnswerResult(
         answer="\n\n".join(parts),
         confidence=conf,
@@ -169,44 +213,86 @@ def _hit_to_citation(h: RetrievalHit) -> Citation:
     )
 
 
-async def _call_openai_chat(
+async def _call_ollama_chat(
     *,
-    api_key: str,
     base_url: str,
     model: str,
     system: str,
     user: str,
 ) -> dict[str, object]:
-    url = f"{base_url.rstrip('/')}/chat/completions"
+    """Non-streaming chat call."""
+    url = f"{base_url.rstrip('/')}/api/chat"
     body = {
         "model": model,
-        "temperature": 0.3,
-        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+        "stream": False,
     }
     async with httpx.AsyncClient(timeout=120.0) as client:
-        r = await client.post(
-            url,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json=body,
-        )
+        r = await client.post(url, json=body)
         r.raise_for_status()
         data = r.json()
-    content = data["choices"][0]["message"]["content"]
+    content = data.get("message", {}).get("content", "")
     if not isinstance(content, str):
-        raise ValueError("Unexpected chat response shape")
+        raise ValueError("Unexpected Ollama chat response shape")
     return _parse_json_loose(content)
 
 
+async def _call_ollama_chat_stream(
+    *,
+    base_url: str,
+    model: str,
+    system: str,
+    user: str,
+):
+    """Stream chat responses from Ollama."""
+    url = f"{base_url.rstrip('/')}/api/chat"
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "stream": True,
+    }
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        async with client.stream("POST", url, json=body) as r:
+            r.raise_for_status()
+            async for line in r.aiter_lines():
+                if line:
+                    data = json.loads(line)
+                    yield data
+
+
 def _parse_json_loose(raw: str) -> dict[str, object]:
+    """Parse JSON from response, with graceful fallback."""
     raw = raw.strip()
+    if not raw:
+        # Empty response - return basic structure
+        return {
+            "answer": "[No response from model]",
+            "confidence": "low",
+            "grounding_note": "Model returned empty response",
+            "cited_chunk_ids": [],
+        }
+    
+    # Try to find JSON object in response
     m = re.search(r"\{[\s\S]*\}", raw)
     if m:
         raw = m.group(0)
-    return json.loads(raw)
+    
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # If not JSON, wrap as plain text response
+        return {
+            "answer": raw[:500],  # Cap at 500 chars
+            "confidence": "medium",
+            "grounding_note": "Model returned plain text instead of structured response",
+            "cited_chunk_ids": [],
+        }
 
 
 def _parse_llm_payload(data: dict[str, object], hits: list[RetrievalHit]) -> GroundedAnswerResult:

@@ -3,6 +3,14 @@ import { getApiBaseUrl } from "./config";
 export type ChatRequest = {
   question: string;
   session_id?: string | null;
+  include_tts?: boolean;
+};
+
+export type AudioMetadata = {
+  audio_url?: string | null;
+  audio_path?: string | null;
+  duration_ms?: number | null;
+  provider: string;
 };
 
 export type RetrievalHit = {
@@ -31,6 +39,7 @@ export type ChatResponse = {
   grounding_note?: string | null;
   sources: SourceCitation[];
   session_id?: string | null;
+  audio?: AudioMetadata | null;
   retrieval?: RetrievalHit[];
   retrieval_error?: string | null;
 };

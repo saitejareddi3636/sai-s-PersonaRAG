@@ -1,8 +1,8 @@
 """
-Load `data/processed/chunks.json`, build a retrieval backend (TF–IDF or OpenAI embeddings),
+Load `data/processed/chunks.json`, build a retrieval backend (TF–IDF or Ollama embeddings),
 and search top-k chunks for a question.
 
-Swap `TfidfBackend` / `OpenAIBackend` in `backends.py` or add a new `RetrievalBackend`
+Swap `TfidfBackend` / `OllamaBackend` in `backends.py` or add a new `RetrievalBackend`
 implementation to point at a hosted vector DB later.
 """
 
@@ -66,11 +66,11 @@ def load_processed_chunks(path: Path) -> list[ChunkRecord]:
 
 
 def embed_and_index_chunks(chunks: list[ChunkRecord], settings: Settings) -> RetrievalBackend:
-    """Build an in-memory index from chunk records (TF–IDF or OpenAI per settings)."""
+    """Build an in-memory index from chunk records (TF–IDF or Ollama embeddings per settings)."""
     mode = (settings.retrieval_backend or "auto").strip().lower()
     if mode == "auto":
-        mode = "openai" if (settings.openai_api_key or "").strip() else "tfidf"
-    if mode not in ("tfidf", "openai"):
+        mode = "ollama"
+    if mode not in ("tfidf", "ollama"):
         raise ValueError(f"Invalid RETRIEVAL_BACKEND: {settings.retrieval_backend}")
 
     logger.info(
@@ -81,9 +81,8 @@ def embed_and_index_chunks(chunks: list[ChunkRecord], settings: Settings) -> Ret
     return build_backend(
         mode,
         chunks,
-        openai_api_key=settings.openai_api_key,
-        openai_embedding_model=settings.openai_embedding_model,
-        openai_base_url=settings.openai_base_url,
+        ollama_embed_model=settings.ollama_embed_model,
+        ollama_base_url=settings.ollama_base_url,
     )
 
 
