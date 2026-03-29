@@ -1,0 +1,12 @@
+# Placeholder: wire services (frontend, API, optional DB/vector) when ready.
+# Example pattern:
+# services:
+#   frontend:
+#     build: ./frontend
+#     ports: ["3000:3000"]
+#   backend:
+#     build: ./backend
+#     ports: ["8000:8000"]
+#     env_file: .env
+
+services: {}

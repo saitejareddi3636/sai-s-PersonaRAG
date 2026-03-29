@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "generated_at": "2026-03-29T12:00:00+00:00",
+  "repo_root": "/path/to/ai-portfolio-agent",
+  "raw_dir": "/path/to/ai-portfolio-agent/data/raw",
+  "sources": ["summary.md", "work_experience.md"],
+  "chunk_count": 2,
+  "ingest_options": {
+    "max_chars": 1200,
+    "overlap": 120
+  },
+  "chunks": [
+    {
+      "id": "summary_00001",
+      "content_type": "summary",
+      "source_file": "summary.md",
+      "section_title": "Overview",
+      "section_level": 2,
+      "text": "Example chunk text. Real runs write data/processed/chunks.json via ingestion.",
+      "metadata": {
+        "source_format": "markdown",
+        "chunk_index": 0,
+        "chunk_count_in_section": 1,
+        "char_count": 78
+      }
+    },
+    {
+      "id": "work_experience_00002",
+      "content_type": "work_experience",
+      "source_file": "work_experience.md",
+      "section_title": "Preamble",
+      "section_level": 0,
+      "text": "Second example chunk with distinct content_type and section metadata.",
+      "metadata": {
+        "source_format": "markdown",
+        "chunk_index": 0,
+        "chunk_count_in_section": 1,
+        "char_count": 62
+      }
+    }
+  ]
+}
