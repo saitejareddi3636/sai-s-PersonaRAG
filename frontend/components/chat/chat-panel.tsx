@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatResponse } from "@/lib/api";
-import { ChatApiError, sendChatMessage } from "@/lib/api";
+import {
+  ChatApiError,
+  sendChatMessage,
+  synthesizeTts,
+  textForVoiceTts,
+  TTS_VOICE_CHAR_BUDGET,
+} from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/config";
 
 import { AssistantMessage } from "./assistant-message";
 import { ChatLoadingSkeleton } from "./chat-loading";
@@ -21,6 +28,9 @@ export type AssistantChatMessage = {
   id: string;
   role: "assistant";
   payload: ChatResponse;
+  /** Voice mode: audio is fetched after chat returns (faster perceived reply). */
+  voicePending?: boolean;
+  voiceError?: string | null;
 };
 
 export type ChatMessage = UserMessage | AssistantChatMessage;
@@ -33,11 +43,15 @@ type ChatPanelProps = {
   className?: string;
 };
 
+type InteractionMode = "chat" | "voice";
+
 export function ChatPanel({ className = "" }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Voice mode requests TTS audio from the backend (requires clean-tts + TTS_PROVIDER=clean-xtts). */
+  const [mode, setMode] = useState<InteractionMode>("chat");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -65,25 +79,65 @@ export function ChatPanel({ className = "" }: ChatPanelProps) {
         const res = await sendChatMessage({
           question,
           session_id: sessionId,
+          include_tts: false,
         });
         if (res.session_id) setSessionId(res.session_id);
+        const assistantId = nextId();
         const assistantMsg: AssistantChatMessage = {
-          id: nextId(),
+          id: assistantId,
           role: "assistant",
           payload: res,
+          voicePending: mode === "voice",
         };
         setMessages((prev) => [...prev, assistantMsg]);
+
+        if (mode === "voice") {
+          const clip = textForVoiceTts(res.answer);
+          void synthesizeTts(clip)
+            .then((audio) => {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId && m.role === "assistant"
+                    ? {
+                        ...m,
+                        voicePending: false,
+                        voiceError: audio ? null : "Voice synthesis failed.",
+                        payload: {
+                          ...m.payload,
+                          audio: audio ?? undefined,
+                        },
+                      }
+                    : m,
+                ),
+              );
+            })
+            .catch(() => {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId && m.role === "assistant"
+                    ? {
+                        ...m,
+                        voicePending: false,
+                        voiceError: "Voice request failed.",
+                      }
+                    : m,
+                ),
+              );
+            });
+        }
       } catch (e) {
         const msg =
           e instanceof ChatApiError
             ? e.message
-            : "Something went wrong. Check that the API is running.";
+            : e instanceof Error
+              ? `${e.message} (API: ${getApiBaseUrl()})`
+              : `Something went wrong. Check that the API is running at ${getApiBaseUrl()}.`;
         setError(msg);
       } finally {
         setLoading(false);
       }
     },
-    [sessionId],
+    [sessionId, mode],
   );
 
   return (
@@ -91,14 +145,46 @@ export function ChatPanel({ className = "" }: ChatPanelProps) {
       className={`flex flex-col rounded-2xl border border-zinc-200/90 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
       aria-labelledby="chat-heading"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-4 py-4 sm:px-5 dark:border-zinc-800">
-        <div>
+      <div className="flex flex-col gap-3 border-b border-zinc-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5 dark:border-zinc-800">
+        <div className="min-w-0 flex-1">
           <h2 id="chat-heading" className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Ask the assistant
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Grounded on portfolio data · cite sources below each reply
+            {mode === "voice"
+              ? `Answer text appears first; audio loads next. Voice reads up to ~${TTS_VOICE_CHAR_BUDGET} characters for speed (full text stays on screen).`
+              : "Grounded on portfolio data · cite sources below each reply"}
           </p>
+          <div
+            className="mt-3 inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+            role="group"
+            aria-label="Interaction mode"
+          >
+            <button
+              type="button"
+              onClick={() => setMode("chat")}
+              disabled={loading}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                mode === "chat"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              }`}
+            >
+              Text chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("voice")}
+              disabled={loading}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                mode === "voice"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              }`}
+            >
+              Voice
+            </button>
+          </div>
         </div>
         <button
           type="button"
@@ -128,7 +214,11 @@ export function ChatPanel({ className = "" }: ChatPanelProps) {
             </MessageBubble>
           ) : (
             <div key={m.id} className="flex justify-start">
-              <AssistantMessage payload={m.payload} />
+              <AssistantMessage
+                payload={m.payload}
+                voicePending={m.role === "assistant" ? m.voicePending : false}
+                voiceError={m.role === "assistant" ? m.voiceError : null}
+              />
             </div>
           ),
         )}

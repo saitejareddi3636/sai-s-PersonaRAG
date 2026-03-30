@@ -136,10 +136,29 @@ Traditional portfolios are static; recruiters can't ask follow-up questions. RAG
 
 ## Getting Started
 
+### Simplest local run (no Docker)
+
+From the repository root:
+
+```bash
+./setup.sh   # one time: Python venv, dependencies, env files
+./run.sh     # clean-tts (if installed) + API + Next.js; Ctrl+C stops all
+```
+
+Then open [http://127.0.0.1:3000](http://127.0.0.1:3000). Health: [API](http://127.0.0.1:8000/health), [clean-tts](http://127.0.0.1:8010/health) when that service is running.
+
+**Voice in one command:** If `clean-tts/.venv` exists (see [clean-tts/README.md](clean-tts/README.md)), `./run.sh` starts **clean-tts on 8010**, sets `TTS_PROVIDER=clean-xtts` for that session, then the API and frontend — **Voice** mode in the UI can use real speech. If there is no clean-tts venv, the API still follows `backend/.env` (e.g. `mock`). Use **`START_VOICE=0 ./run.sh`** to skip launching clean-tts (lighter machine).
+
+**If your Mac feels slow or hot:** `./run.sh` already avoids the heaviest defaults (no API file-watcher reload; Next uses webpack on `127.0.0.1` only). Run **only one** service when possible: `./run-backend.sh` or `./run-frontend.sh` in separate terminals. **Quit Ollama** when you are not chatting (`ollama stop` / Activity Monitor) — local LLMs use a lot of RAM. **Skip Docker** unless you need the full container stack.
+
+**Ollama is optional.** If [Ollama](https://ollama.com) is not running, the app still responds using the excerpt fallback. For full chat + semantic retrieval, run Ollama locally and pull `qwen2.5:3b` and `nomic-embed-text` (see below).
+
+To turn API auto-reload back on while editing Python: `DEV_RELOAD=1 ./run.sh`.
+
 ### Prerequisites
 
-- **Docker & Docker Compose** (recommended; includes Ollama)
-- **Or**: Node.js 20+, Python 3.11+, npm + Ollama running locally
+- **Docker & Docker Compose** (optional; heavier on some Macs)
+- **Or**: Node.js 20+, Python 3.11+, npm; Ollama optional for full LLM features
 
 ### Option 1: Docker (Fastest, includes Ollama)
 

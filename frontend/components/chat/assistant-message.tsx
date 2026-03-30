@@ -3,6 +3,8 @@ import { AudioPlayer } from "./audio-player";
 
 type AssistantMessageProps = {
   payload: ChatResponse;
+  voicePending?: boolean;
+  voiceError?: string | null;
 };
 
 const confidenceLabel: Record<ChatResponse["confidence"], string> = {
@@ -11,8 +13,12 @@ const confidenceLabel: Record<ChatResponse["confidence"], string> = {
   low: "Limited context",
 };
 
-export function AssistantMessage({ payload }: AssistantMessageProps) {
-  const { answer, confidence, grounding_note, sources, retrieval_error, audio } = payload;
+export function AssistantMessage({
+  payload,
+  voicePending = false,
+  voiceError = null,
+}: AssistantMessageProps) {
+  const { answer, confidence, grounding_note, sources, retrieval_error, audio, tts_error } = payload;
   const hasSources = sources && sources.length > 0;
 
   return (
@@ -40,7 +46,31 @@ export function AssistantMessage({ payload }: AssistantMessageProps) {
         <p className="whitespace-pre-wrap">{answer}</p>
       </div>
 
+      {voicePending && !audio?.audio_url ? (
+        <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400" role="status">
+          Generating voice…
+        </p>
+      ) : null}
+
       {audio?.audio_url && <AudioPlayer audio={audio} />}
+
+      {(voiceError ?? "").trim() ? (
+        <p
+          className="mt-3 rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-xs text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+        >
+          Voice: {voiceError}
+        </p>
+      ) : null}
+
+      {tts_error?.trim() ? (
+        <p
+          className="mt-3 rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-xs text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+        >
+          Voice: {tts_error}
+        </p>
+      ) : null}
 
       {retrieval_error ? (
         <p

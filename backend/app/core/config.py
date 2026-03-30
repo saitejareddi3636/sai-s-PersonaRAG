@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "ai-portfolio-agent API"
-    cors_origins: str = "http://localhost:3000"
+    # Browsers treat localhost and 127.0.0.1 as different origins — list both for local dev.
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     log_level: str = "INFO"
 
     # Retrieval / RAG
@@ -26,8 +27,10 @@ class Settings(BaseSettings):
     session_max_total_chars: int = 4000
 
     # TTS (Text-to-Speech)
-    tts_provider: str = "mock"  # "mock", "local-service", or "f5-tts" when available
-    tts_service_url: str = "http://localhost:9000"  # URL for local-service provider
+    # mock | local-service | clean-xtts | f5-tts
+    tts_provider: str = "mock"
+    tts_service_url: str = "http://localhost:9000"  # local-service (e.g. legacy F5-style API)
+    clean_tts_url: str = "http://127.0.0.1:8010"  # clean-tts FastAPI (XTTS POST /tts)
 
 
 def get_settings() -> Settings:

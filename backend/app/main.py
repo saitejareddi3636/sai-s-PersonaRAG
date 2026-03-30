@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     async def lifespan(_: FastAPI):
         logger.info("starting %s", settings.app_name)
         warm_retrieval_index(settings)
+        logger.info("startup complete — serving requests (GET /health)")
         yield
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)

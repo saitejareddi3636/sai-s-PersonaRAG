@@ -4,25 +4,16 @@ TTS (Text-to-Speech) API route.
 Exposes /api/tts endpoint for frontend to request audio synthesis.
 Supports multiple backends: mock, local service (e.g., F5-TTS), and future embedded models.
 
-## Graceful degradation
+## Binary response (recommended for browser)
 
-If TTS synthesis fails:
-- Response has success=False
-- Frontend should show text-only answer (normal chat flow)
-- User can still read the answer without audio
-
-## Local TTS service
-
-To enable local TTS service:
-1. Start local F5-TTS service on http://localhost:9000 (or configured URL)
-2. Set TTS_PROVIDER=local-service in backend/.env
-3. POST /api/tts will call the local service
-4. If service unavailable, gracefully returns error
+Send header `Accept: audio/wav` to receive raw WAV bytes (faster than huge JSON+base64).
 """
 
+import base64
 import logging
+import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Response
 
 from app.core.config import get_settings
 from app.schemas.tts import TTSRequest, TTSResponse
@@ -33,45 +24,64 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["tts"])
 
 
-@router.post("/tts", response_model=TTSResponse)
-async def synthesize_text(body: TTSRequest) -> TTSResponse:
+@router.post("/tts", response_model=None)
+async def synthesize_text(body: TTSRequest, request: Request) -> Response | TTSResponse:
     """
     Synthesize text into audio.
 
-    Accepts plain text and optional voice profile ID.
-    Returns metadata about synthesized audio (URL, duration, etc.).
-
-    Supports multiple TTS backends:
-    - mock: Returns mocked audio metadata (always works)
-    - local-service: Calls external TTS service (graceful fallback if unavailable)
-    - f5-tts: Placeholder for future embedded model
-
-    Args:
-        body: TTSRequest with text and optional voice_profile_id
-
-    Returns:
-        TTSResponse with audio metadata and reference
-        
-    Note:
-        If TTS synthesis fails, success=False; frontend should fall back to text-only.
+    - With `Accept: audio/wav` (or `audio/*`): returns raw WAV bytes (fast for the UI).
+    - Otherwise: JSON metadata; `audio_url` may be a data URL (mock / legacy).
     """
     settings = get_settings()
-    
-    # Get configured service URL if using local service
-    local_service_url = getattr(settings, 'tts_service_url', 'http://localhost:9000')
-    
-    backend = get_tts_backend(settings.tts_provider, service_url=local_service_url)
 
-    result = await backend.synthesize(body.text, body.voice_profile_id)
-
-    logger.info(
-        f"TTS synthesis: provider={settings.tts_provider}, "
-        f"success={result.get('success')}, text_len={len(body.text)}"
+    local_service_url = getattr(settings, "tts_service_url", "http://localhost:9000")
+    clean_url = getattr(settings, "clean_tts_url", "http://127.0.0.1:8010")
+    backend = get_tts_backend(
+        settings.tts_provider,
+        service_url=local_service_url,
+        clean_tts_url=clean_url,
     )
 
+    t0 = time.perf_counter()
+    result = await backend.synthesize(body.text, body.voice_profile_id)
+    t_syn = time.perf_counter() - t0
+
+    logger.info(
+        "portfolio_tts_proxy synthesize_s=%.3f provider=%s success=%s text_len=%s",
+        t_syn,
+        settings.tts_provider,
+        result.get("success"),
+        len(body.text),
+    )
+
+    accept = (request.headers.get("accept") or "").lower()
+    want_wav = "audio/wav" in accept or "audio/*" in accept
+
+    if result.get("success") and want_wav and result.get("audio_wav_bytes"):
+        return Response(
+            content=result["audio_wav_bytes"],
+            media_type="audio/wav",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    if not result.get("success"):
+        return TTSResponse(
+            success=False,
+            audio_url=None,
+            audio_path=None,
+            duration_ms=None,
+            provider=result.get("provider", settings.tts_provider),
+            message=result.get("message"),
+        )
+
+    audio_url = result.get("audio_url")
+    if not audio_url and result.get("audio_wav_bytes"):
+        b64 = base64.b64encode(result["audio_wav_bytes"]).decode("ascii")
+        audio_url = f"data:audio/wav;base64,{b64}"
+
     return TTSResponse(
-        success=result["success"],
-        audio_url=result.get("audio_url"),
+        success=True,
+        audio_url=audio_url,
         audio_path=result.get("audio_path"),
         duration_ms=result.get("duration_ms"),
         provider=result.get("provider", settings.tts_provider),

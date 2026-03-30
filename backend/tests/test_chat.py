@@ -17,6 +17,18 @@ def test_chat_returns_answer_and_retrieval(client: TestClient) -> None:
     assert isinstance(data["retrieval"], list)
 
 
+def test_chat_benchmark_headers(client: TestClient) -> None:
+    response = client.post(
+        "/api/chat",
+        json={"question": "Say hi in one sentence."},
+        headers={"X-Benchmark": "1"},
+    )
+    assert response.status_code == 200
+    assert "x-benchmark-llm-s" in {k.lower() for k in response.headers.keys()}
+    assert response.headers.get("x-benchmark-retrieval-s") is not None
+    assert response.headers.get("x-benchmark-chat-total-s") is not None
+
+
 def test_chat_with_session_id(client: TestClient) -> None:
     response = client.post(
         "/api/chat",

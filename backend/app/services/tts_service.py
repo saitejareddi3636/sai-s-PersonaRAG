@@ -42,9 +42,12 @@ Expected external service (e.g., F5-TTS):
 5. If synthesis fails, text response still works (fallback in frontend)
 """
 
+import base64
+import io
 import logging
+import wave
 from abc import ABC, abstractmethod
-from datetime import datetime
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -75,36 +78,49 @@ class TTSBackend(ABC):
         pass
 
 
+def _minimal_silent_wav() -> tuple[str, bytes, int]:
+    """Short silent WAV: data URL, raw bytes, duration_ms."""
+    buf = io.BytesIO()
+    rate = 22050
+    frames = int(rate * 0.4)
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(rate)
+        wf.writeframes(b"\x00\x00" * frames)
+    wav_bytes = buf.getvalue()
+    b64 = base64.b64encode(wav_bytes).decode("ascii")
+    duration_ms = int(round(frames / float(rate) * 1000))
+    return f"data:audio/wav;base64,{b64}", wav_bytes, duration_ms
+
+
 class MockTTSBackend(TTSBackend):
     """
     Mock TTS backend for development and testing.
-    Returns deterministic mocked audio references.
+    Returns a playable silent clip (data URL) so the Voice UI works without a TTS server.
     """
 
     async def synthesize(
         self, text: str, voice_profile_id: str | None = None
     ) -> dict:
-        """
-        Return a mocked audio response.
-        Useful for frontend development before real TTS is integrated.
-        """
-        # Estimate duration: ~140-150 words per minute in speech
         word_count = len(text.split())
         estimated_duration_ms = int((word_count / 150) * 60 * 1000)
-
-        # Clamp to reasonable bounds
         estimated_duration_ms = max(500, min(estimated_duration_ms, 300000))
 
         voice_label = voice_profile_id or "default"
-        timestamp = datetime.utcnow().isoformat()
+        data_url, wav_bytes, _clip_ms = _minimal_silent_wav()
 
         return {
             "success": True,
-            "audio_url": f"/api/audio/mock-{timestamp}.mp3",
-            "audio_path": f"cache/audio/mock-{timestamp}.mp3",
+            "audio_url": data_url,
+            "audio_wav_bytes": wav_bytes,
+            "audio_path": None,
             "duration_ms": estimated_duration_ms,
             "provider": "mock",
-            "message": f"Mocked audio synthesis ({word_count} words, voice={voice_label})",
+            "message": (
+                f"Mock TTS: silent placeholder clip ({word_count} words, voice={voice_label}); "
+                f"set TTS_PROVIDER=clean-xtts and run clean-tts for real speech."
+            ),
         }
 
 
@@ -152,6 +168,70 @@ class LocalTTSServiceAdapter(TTSBackend):
         }
 
 
+class CleanXTTSBackend(TTSBackend):
+    """
+    Calls the standalone clean-tts service (Coqui XTTS v2).
+    Expects: POST {base}/tts with JSON {"text": str, "language": str} → audio/wav body.
+    Returns a data: URL so the browser can play without extra static hosting.
+    """
+
+    def __init__(self, base_url: str = "http://127.0.0.1:8010"):
+        self.base_url = base_url.rstrip("/")
+
+    async def synthesize(
+        self, text: str, voice_profile_id: str | None = None
+    ) -> dict:
+        _ = voice_profile_id
+        if not text.strip():
+            return {
+                "success": False,
+                "audio_url": None,
+                "audio_path": None,
+                "duration_ms": None,
+                "provider": "clean-xtts",
+                "message": "Empty text",
+            }
+        url = f"{self.base_url}/tts"
+        try:
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                r = await client.post(
+                    url,
+                    json={"text": text.strip(), "language": "en"},
+                    headers={"Content-Type": "application/json"},
+                )
+                r.raise_for_status()
+                wav_bytes = r.content
+        except Exception as e:
+            logger.warning("clean-tts request failed: %s", e)
+            return {
+                "success": False,
+                "audio_url": None,
+                "audio_path": None,
+                "duration_ms": None,
+                "provider": "clean-xtts",
+                "message": str(e),
+            }
+
+        duration_ms: int | None = None
+        try:
+            with wave.open(io.BytesIO(wav_bytes)) as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate() or 24000
+                duration_ms = int(round(frames / float(rate) * 1000))
+        except Exception:
+            duration_ms = None
+
+        return {
+            "success": True,
+            "audio_url": None,
+            "audio_wav_bytes": wav_bytes,
+            "audio_path": None,
+            "duration_ms": duration_ms,
+            "provider": "clean-xtts",
+            "message": None,
+        }
+
+
 class F5TTSBackend(TTSBackend):
     """
     F5-TTS backend for local speech synthesis.
@@ -176,13 +256,19 @@ class F5TTSBackend(TTSBackend):
         raise NotImplementedError("F5-TTS not yet integrated")
 
 
-def get_tts_backend(provider: str = "mock", service_url: str = "http://localhost:9000") -> TTSBackend:
+def get_tts_backend(
+    provider: str = "mock",
+    service_url: str = "http://localhost:9000",
+    *,
+    clean_tts_url: str = "http://127.0.0.1:8010",
+) -> TTSBackend:
     """
     Factory to get a TTS backend by name.
 
     Args:
-        provider: Backend name ("mock", "local-service", "f5-tts")
-        service_url: URL for local-service provider
+        provider: "mock" | "local-service" | "clean-xtts" | "f5-tts"
+        service_url: Base URL for local-service provider
+        clean_tts_url: Base URL for clean-xtts (XTTS) service
 
     Returns:
         Instantiated TTSBackend
@@ -192,9 +278,10 @@ def get_tts_backend(provider: str = "mock", service_url: str = "http://localhost
     """
     if provider == "mock":
         return MockTTSBackend()
-    elif provider == "local-service":
+    if provider == "local-service":
         return LocalTTSServiceAdapter(local_service_url=service_url)
-    elif provider == "f5-tts":
+    if provider == "clean-xtts":
+        return CleanXTTSBackend(base_url=clean_tts_url)
+    if provider == "f5-tts":
         return F5TTSBackend()
-    else:
-        raise ValueError(f"Unknown TTS provider: {provider}")
+    raise ValueError(f"Unknown TTS provider: {provider}")

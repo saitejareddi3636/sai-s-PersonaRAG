@@ -63,3 +63,15 @@ class ChatResponse(BaseModel):
         None,
         description="Optional audio synthesis metadata (when include_tts=True and synthesis succeeded)",
     )
+    tts_error: str | None = Field(
+        None,
+        description="When include_tts was True but synthesis failed, a short reason (e.g. clean-tts not running)",
+    )
+    retrieval: list[RetrievalHitSchema] = Field(
+        default_factory=list,
+        description="Top retrieval hits for debugging / transparency",
+    )
+    retrieval_error: str | None = Field(
+        None,
+        description="Set when the retrieval index could not be queried",
+    )

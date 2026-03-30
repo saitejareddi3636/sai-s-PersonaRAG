@@ -1,0 +1,13 @@
+# Apple Silicon: install torch first if pip wheels misbehave — see README.
+# Coqui TTS 0.22.x imports BeamSearchScorer from transformers; that API is gone in transformers 5.x.
+torch>=2.1.0
+torchaudio>=2.1.0
+# TorchAudio 2.9+ uses torchcodec for torchaudio.load (speaker WAV for XTTS).
+torchcodec>=0.2.0
+# Pin below 4.41: Coqui XTTS stream_generator still imports BeamSearchScorer from transformers top-level.
+transformers>=4.35.0,<4.41.0
+TTS>=0.22.0
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+soundfile>=0.12.1
+numpy>=1.24.0

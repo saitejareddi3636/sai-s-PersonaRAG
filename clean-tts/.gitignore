@@ -1,0 +1,12 @@
+.venv/
+venv/
+xtts-env/
+__pycache__/
+*.py[cod]
+.Python
+*.wav
+!samples/.gitkeep
+!outputs/.gitkeep
+.DS_Store
+*.egg-info/
+.pytest_cache/
