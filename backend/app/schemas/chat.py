@@ -65,7 +65,7 @@ class ChatResponse(BaseModel):
     )
     tts_error: str | None = Field(
         None,
-        description="When include_tts was True but synthesis failed, a short reason (e.g. clean-tts not running)",
+        description="When include_tts was True but synthesis failed, a short reason",
     )
     retrieval: list[RetrievalHitSchema] = Field(
         default_factory=list,

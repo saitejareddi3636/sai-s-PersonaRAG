@@ -35,11 +35,13 @@ async def synthesize_text(body: TTSRequest, request: Request) -> Response | TTSR
     settings = get_settings()
 
     local_service_url = getattr(settings, "tts_service_url", "http://localhost:9000")
-    clean_url = getattr(settings, "clean_tts_url", "http://127.0.0.1:8010")
     backend = get_tts_backend(
         settings.tts_provider,
         service_url=local_service_url,
-        clean_tts_url=clean_url,
+        piper_binary=getattr(settings, "piper_binary", "piper"),
+        piper_model_path=getattr(settings, "piper_model_path", ""),
+        piper_speaker_id=getattr(settings, "piper_speaker_id", None),
+        piper_timeout_s=getattr(settings, "piper_timeout_s", 45.0),
     )
 
     t0 = time.perf_counter()

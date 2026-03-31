@@ -26,11 +26,25 @@ class Settings(BaseSettings):
     session_max_messages: int = 12
     session_max_total_chars: int = 4000
 
+    # STT (Speech-to-Text)
+    stt_provider: str = "faster-whisper"
+    stt_model_size: str = "base"  # tiny, base, small, medium, large (base = good speed/accuracy for Mac CPU)
+    stt_device: str = "cpu"  # cpu | cuda
+    stt_compute_type: str = "int8"  # int8 (fastest on CPU), int16, float16, float32
+    stt_beam_size: int = 1  # 1=greedy (fastest), >1 uses beam search (slower)
+    stt_timeout_s: float = 60.0  # Reserved for future timeout implementation (not currently used)
+    stt_language: str | None = None  # Optional: 'en', 'es', 'fr', etc. for faster/better recognition
+
     # TTS (Text-to-Speech)
-    # mock | local-service | clean-xtts | f5-tts
-    tts_provider: str = "mock"
-    tts_service_url: str = "http://localhost:9000"  # local-service (e.g. legacy F5-style API)
-    clean_tts_url: str = "http://127.0.0.1:8010"  # clean-tts FastAPI (XTTS POST /tts)
+    # Provider: piper (default, reliable, local CPU) | mock (silent test) | local-service | f5-tts (disabled)
+    tts_provider: str = "piper"
+    tts_service_url: str = "http://localhost:9000"  # Only for local-service provider
+    # Piper TTS (default, runs locally on CPU)
+    piper_binary: str = "piper"  # Binary command or absolute path
+    piper_model_path: str = ""  # Absolute path to .onnx model file (required for piper provider)
+    piper_speaker_id: int | None = None  # 0, 1, 2, etc. for multi-speaker models; None for single-speaker
+    piper_timeout_s: float = 45.0  # Max seconds per synthesis request
+    voice_tts_max_chars: int = 420  # Voice-mode spoken summary cap to reduce TTS latency
 
 
 def get_settings() -> Settings:

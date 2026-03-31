@@ -47,7 +47,8 @@ import io
 import logging
 import wave
 from abc import ABC, abstractmethod
-import httpx
+
+from app.services.piper_tts_client import PiperTTSClient
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ class MockTTSBackend(TTSBackend):
             "provider": "mock",
             "message": (
                 f"Mock TTS: silent placeholder clip ({word_count} words, voice={voice_label}); "
-                f"set TTS_PROVIDER=clean-xtts and run clean-tts for real speech."
+                f"set TTS_PROVIDER=piper for real speech."
             ),
         }
 
@@ -168,68 +169,9 @@ class LocalTTSServiceAdapter(TTSBackend):
         }
 
 
-class CleanXTTSBackend(TTSBackend):
-    """
-    Calls the standalone clean-tts service (Coqui XTTS v2).
-    Expects: POST {base}/tts with JSON {"text": str, "language": str} → audio/wav body.
-    Returns a data: URL so the browser can play without extra static hosting.
-    """
-
-    def __init__(self, base_url: str = "http://127.0.0.1:8010"):
-        self.base_url = base_url.rstrip("/")
-
-    async def synthesize(
-        self, text: str, voice_profile_id: str | None = None
-    ) -> dict:
-        _ = voice_profile_id
-        if not text.strip():
-            return {
-                "success": False,
-                "audio_url": None,
-                "audio_path": None,
-                "duration_ms": None,
-                "provider": "clean-xtts",
-                "message": "Empty text",
-            }
-        url = f"{self.base_url}/tts"
-        try:
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                r = await client.post(
-                    url,
-                    json={"text": text.strip(), "language": "en"},
-                    headers={"Content-Type": "application/json"},
-                )
-                r.raise_for_status()
-                wav_bytes = r.content
-        except Exception as e:
-            logger.warning("clean-tts request failed: %s", e)
-            return {
-                "success": False,
-                "audio_url": None,
-                "audio_path": None,
-                "duration_ms": None,
-                "provider": "clean-xtts",
-                "message": str(e),
-            }
-
-        duration_ms: int | None = None
-        try:
-            with wave.open(io.BytesIO(wav_bytes)) as wf:
-                frames = wf.getnframes()
-                rate = wf.getframerate() or 24000
-                duration_ms = int(round(frames / float(rate) * 1000))
-        except Exception:
-            duration_ms = None
-
-        return {
-            "success": True,
-            "audio_url": None,
-            "audio_wav_bytes": wav_bytes,
-            "audio_path": None,
-            "duration_ms": duration_ms,
-            "provider": "clean-xtts",
-            "message": None,
-        }
+# XTTS backend disabled in active runtime path.
+# class CleanXTTSBackend(TTSBackend):
+#     ...
 
 
 class F5TTSBackend(TTSBackend):
@@ -256,32 +198,91 @@ class F5TTSBackend(TTSBackend):
         raise NotImplementedError("F5-TTS not yet integrated")
 
 
+class PiperTTSBackend(TTSBackend):
+    """Piper local CPU TTS backend."""
+
+    def __init__(
+        self,
+        *,
+        piper_binary: str = "piper",
+        model_path: str = "",
+        speaker_id: int | None = None,
+        timeout_s: float = 45.0,
+    ):
+        self.client = PiperTTSClient(
+            piper_binary=piper_binary,
+            model_path=model_path,
+            speaker_id=speaker_id,
+            synth_timeout_s=timeout_s,
+        )
+
+    async def synthesize(
+        self, text: str, voice_profile_id: str | None = None
+    ) -> dict:
+        _ = voice_profile_id
+        return await self.client.synthesize(text)
+
+
+# Cache backends by configuration to avoid recreating per request
+_TTS_BACKEND_CACHE: dict[tuple, TTSBackend] = {}
+
+
 def get_tts_backend(
     provider: str = "mock",
     service_url: str = "http://localhost:9000",
     *,
-    clean_tts_url: str = "http://127.0.0.1:8010",
+    piper_binary: str = "piper",
+    piper_model_path: str = "",
+    piper_speaker_id: int | None = None,
+    piper_timeout_s: float = 45.0,
 ) -> TTSBackend:
     """
     Factory to get a TTS backend by name.
 
+    Backends are cached to avoid recreating per request (e.g., Piper model loading).
+
     Args:
-        provider: "mock" | "local-service" | "clean-xtts" | "f5-tts"
+        provider: "piper" | "mock" | "local-service" | "f5-tts"
         service_url: Base URL for local-service provider
-        clean_tts_url: Base URL for clean-xtts (XTTS) service
+        piper_binary: Piper command/path
+        piper_model_path: Path to .onnx model
+        piper_speaker_id: Speaker ID (for multi-speaker models)
+        piper_timeout_s: Timeout in seconds
 
     Returns:
-        Instantiated TTSBackend
+        Instantiated TTSBackend (may be cached)
 
     Raises:
         ValueError: If provider is unknown or not available
     """
     if provider == "mock":
+        # Mock is stateless, no need to cache
         return MockTTSBackend()
+
+    if provider == "piper":
+        # Cache by config tuple to reuse backends
+        cache_key = ("piper", piper_binary, piper_model_path, piper_speaker_id, piper_timeout_s)
+        if cache_key not in _TTS_BACKEND_CACHE:
+            _TTS_BACKEND_CACHE[cache_key] = PiperTTSBackend(
+                piper_binary=piper_binary,
+                model_path=piper_model_path,
+                speaker_id=piper_speaker_id,
+                timeout_s=piper_timeout_s,
+            )
+        return _TTS_BACKEND_CACHE[cache_key]
+
     if provider == "local-service":
-        return LocalTTSServiceAdapter(local_service_url=service_url)
+        # Cache by service URL
+        cache_key = ("local-service", service_url)
+        if cache_key not in _TTS_BACKEND_CACHE:
+            _TTS_BACKEND_CACHE[cache_key] = LocalTTSServiceAdapter(local_service_url=service_url)
+        return _TTS_BACKEND_CACHE[cache_key]
+
+    # XTTS provider is intentionally disabled.
     if provider == "clean-xtts":
-        return CleanXTTSBackend(base_url=clean_tts_url)
+        raise ValueError("TTS provider 'clean-xtts' is disabled. Use 'piper'.")
+
     if provider == "f5-tts":
         return F5TTSBackend()
+
     raise ValueError(f"Unknown TTS provider: {provider}")

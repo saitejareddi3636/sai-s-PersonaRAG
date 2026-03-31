@@ -1,0 +1,513 @@
+{
+  "summary": {
+    "total": 50,
+    "pass": 49,
+    "fail": 1,
+    "avg_latency_s": 3.216,
+    "p95_latency_s": 5.841
+  },
+  "results": [
+    {
+      "question": "hi",
+      "status": "PASS",
+      "latency_s": 0.025,
+      "confidence": "high",
+      "sources_count": 0,
+      "answer": "Hello! Happy to help with any question about my background.",
+      "failures": [],
+      "index": 1
+    },
+    {
+      "question": "hello",
+      "status": "PASS",
+      "latency_s": 0.002,
+      "confidence": "high",
+      "sources_count": 0,
+      "answer": "Hello! Happy to help with any question about my background.",
+      "failures": [],
+      "index": 2
+    },
+    {
+      "question": "hey there",
+      "status": "PASS",
+      "latency_s": 0.001,
+      "confidence": "high",
+      "sources_count": 0,
+      "answer": "Hey there! Happy to help with any question about my background.",
+      "failures": [],
+      "index": 3
+    },
+    {
+      "question": "tell me little bit about yourself",
+      "status": "PASS",
+      "latency_s": 6.821,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Hello, I'm excited to share my background with you. As a software engineer with experience in Java and Spring Boot, I've built microservices using these technologies for real-time applications and microservice architecture. My expertise spans database design and optimization, Kafka integration for event streaming, testing frameworks such as JUnit and Mockito, and CI/CD integration. On top of that, I have hands-on experience with RAG pipelines, including chunking, embedding, retrieval, answer generation, and production deployment. I can jump into a Spring Boot codebase and be productive quickly.",
+      "failures": [],
+      "index": 4
+    },
+    {
+      "question": "give me a short intro about you",
+      "status": "PASS",
+      "latency_s": 4.812,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I am a Computer Science student at the University of North Texas, graduating in May 2026 with a GPA of 3.9. I have hands-on experience in backend systems, production AI, and full-stack AI products.",
+      "failures": [],
+      "index": 5
+    },
+    {
+      "question": "where do you study",
+      "status": "PASS",
+      "latency_s": 2.223,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "The University of North Texas in Denton, Texas.",
+      "failures": [],
+      "index": 6
+    },
+    {
+      "question": "what school do you go to",
+      "status": "PASS",
+      "latency_s": 1.381,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "University of North Texas",
+      "failures": [],
+      "index": 7
+    },
+    {
+      "question": "what is your GPA",
+      "status": "FAIL",
+      "latency_s": 1.821,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "3.9",
+      "failures": [
+        "short_or_empty"
+      ],
+      "index": 8
+    },
+    {
+      "question": "when do you graduate",
+      "status": "PASS",
+      "latency_s": 2.609,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "May 2026",
+      "failures": [],
+      "index": 9
+    },
+    {
+      "question": "what is your degree",
+      "status": "PASS",
+      "latency_s": 3.039,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Bachelor of Computer Science degree maintained with a 3.9 GPA",
+      "failures": [],
+      "index": 10
+    },
+    {
+      "question": "what coursework have you taken",
+      "status": "PASS",
+      "latency_s": 1.859,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "I could not produce a grounded reply from the model output; please try again.",
+      "failures": [],
+      "index": 11
+    },
+    {
+      "question": "what are your strongest technical skills",
+      "status": "PASS",
+      "latency_s": 4.949,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I have hands-on experience in backend systems, production AI, and full-stack development, with a focus on Spring Boot, FastAPI, REST APIs, databases, microservices, LLM integration, RAG systems, AI agents, structured generation, and reliable engineering practices such as testing, debugging, observability, and production readiness.",
+      "failures": [],
+      "index": 12
+    },
+    {
+      "question": "what programming languages do you use most",
+      "status": "PASS",
+      "latency_s": 3.938,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I use Python most, along with JavaScript/TypeScript for frontend and backend development, particularly with Node.js. I also have comfort in using Java for microservices and SQL for database design and optimization.",
+      "failures": [],
+      "index": 13
+    },
+    {
+      "question": "what backend frameworks have you used",
+      "status": "PASS",
+      "latency_s": 2.86,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "backend frameworks used include none specified in the provided passages, however I can tell you that the person worked on low-latency backend services handling 1,000+ concurrent sessions with 99.5% availability.",
+      "failures": [],
+      "index": 14
+    },
+    {
+      "question": "what databases have you worked with",
+      "status": "PASS",
+      "latency_s": 1.577,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "vector databases and SQL",
+      "failures": [],
+      "index": 15
+    },
+    {
+      "question": "do you have cloud experience",
+      "status": "PASS",
+      "latency_s": 3.311,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Yes, I have experience with cloud infrastructure, as evidenced by my role at Avtar Inc., where I worked on real-time inference pipelines and low-latency backend services handling 1,000+ concurrent sessions with 99.5% availability.",
+      "failures": [],
+      "index": 16
+    },
+    {
+      "question": "what is your experience with Docker",
+      "status": "PASS",
+      "latency_s": 2.394,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I have experience with Docker containerization and image optimization as well as using Docker Compose for local development.",
+      "failures": [],
+      "index": 17
+    },
+    {
+      "question": "what is your experience with Kubernetes",
+      "status": "PASS",
+      "latency_s": 2.428,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Built and deployed multi-agent systems with guardrails on Kubernetes, utilizing Docker, AWS, and CI/CD pipelines.",
+      "failures": [],
+      "index": 18
+    },
+    {
+      "question": "what is your experience with CI/CD",
+      "status": "PASS",
+      "latency_s": 4.272,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "CI/CD experience is mentioned in the JPMorgan role and current use sections of the candidate materials. Specifically, it mentions testing and CI/CD integration, as well as good understanding of Spring concepts and CI/CD integration. The candidate also mentions being able to jump into a Spring Boot codebase and be productive quickly, implying familiarity with CI/CD tools.",
+      "failures": [],
+      "index": 19
+    },
+    {
+      "question": "what is your experience with observability",
+      "status": "PASS",
+      "latency_s": 3.005,
+      "confidence": "medium",
+      "sources_count": 1,
+      "answer": "{\"answer\": \"Built and deployed production voice AI systems combining speech recognition, language modeling, and speech synthesis. Worked on real-time inference pipelines and low-latency backend services handling 1,000+ concurrent sessions with 99.5% availability.\", \"confidence\": \"high\", \"grounding_note\": null_or_string, \"cited_chunk_ids\": [\"experience_00017\"]}",
+      "failures": [],
+      "index": 20
+    },
+    {
+      "question": "what kind of AI systems have you built",
+      "status": "PASS",
+      "latency_s": 3.929,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "I have built production voice AI systems and RAG pipelines, as well as multi-agent systems and full-stack AI products.",
+      "failures": [],
+      "index": 21
+    },
+    {
+      "question": "what is your RAG experience",
+      "status": "PASS",
+      "latency_s": 2.027,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "I don't have RAG experience in my materials as it's not explicitly mentioned.",
+      "failures": [],
+      "index": 22
+    },
+    {
+      "question": "what is your LLM integration experience",
+      "status": "PASS",
+      "latency_s": 4.388,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "I have experience with OpenAI API (gpt-4o-mini, gpt-4, gpt-3.5-turbo) and Anthropic Claude API for LLM integration. I also implemented structured generation using JSON schemas, temperature and parameter tuning, token counting, and cost optimization. Additionally, I worked on streaming responses.",
+      "failures": [],
+      "index": 23
+    },
+    {
+      "question": "have you built multi-agent systems",
+      "status": "PASS",
+      "latency_s": 4.143,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "yes, as described in experience_00022 and recruiter_faq_00112, specifically built multi-agent orchestration systems with LLM integration and RAG-enabled workflows",
+      "failures": [],
+      "index": 24
+    },
+    {
+      "question": "what are your key projects",
+      "status": "PASS",
+      "latency_s": 5.841,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "My 7 completed projects demonstrate a strong background in backend infrastructure (APIs, databases, microservices), full-stack capability (frontend, backend, infrastructure), and AI/ML systems (NLP, voice, agents, RAG). Projects like Enterprise Support Copilot and Voice QA showcase my expertise in LLM API integration and production AI monitoring. The RSVP Platform and Onboarding/Billing System highlight my experience with full-stack development and production thinking. My work on Code Time demonstrates my understanding of developer tooling and backend metrics.",
+      "failures": [],
+      "index": 25
+    },
+    {
+      "question": "which project are you most proud of",
+      "status": "PASS",
+      "latency_s": 3.215,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "project_00080",
+      "failures": [],
+      "index": 26
+    },
+    {
+      "question": "what impact did your projects have",
+      "status": "PASS",
+      "latency_s": 6.112,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Each project showcased significant impact across various aspects of AI product development and full-stack capability. For instance, Open Claw demonstrated its agent runtime framework capabilities, Enterprise Support Copilot showed the effectiveness of RAG systems in support teams, while Feedback Intelligence successfully processed customer feedback through NLP pipeline processing. Voice QA provided real-time voice AI for quality assurance, RSVP Platform offered a robust full-stack event management application, Onboarding/Billing System provided backend APIs for user management and billing, and Developer Tooling (Code Time) enhanced VS Code extension and backend capabilities.",
+      "failures": [],
+      "index": 27
+    },
+    {
+      "question": "what was your role at Avtar",
+      "status": "PASS",
+      "latency_s": 2.251,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Voice AI Engineer",
+      "failures": [],
+      "index": 28
+    },
+    {
+      "question": "what did you do at Niro AI",
+      "status": "PASS",
+      "latency_s": 4.213,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I built multi-agent orchestration from scratch at Niro AI, including agent loops, tool calling, execution safeguards, session memory and multi-turn context management, structured output generation, production agent patterns, and integration with multiple LLM providers and self-hosted models.",
+      "failures": [],
+      "index": 29
+    },
+    {
+      "question": "do you have production experience",
+      "status": "PASS",
+      "latency_s": 3.495,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Yes, I have production experience building and deploying voice AI systems, including speech recognition, language modeling, and speech synthesis. I worked on real-time inference pipelines and low-latency backend services handling 1,000+ concurrent sessions with 99.5% availability.",
+      "failures": [],
+      "index": 30
+    },
+    {
+      "question": "how many years work experience do you have",
+      "status": "PASS",
+      "latency_s": 1.563,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "Approximately 0.75 years of work experience",
+      "failures": [],
+      "index": 31
+    },
+    {
+      "question": "how long did you work at Avtar",
+      "status": "PASS",
+      "latency_s": 1.966,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Avtar Inc. is my current work experience, and I worked there from September 2024 to February 2026.",
+      "failures": [],
+      "index": 32
+    },
+    {
+      "question": "how long did you work at Niro AI",
+      "status": "PASS",
+      "latency_s": 2.873,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "I could not produce a grounded reply from the model output; please try again.",
+      "failures": [],
+      "index": 33
+    },
+    {
+      "question": "are you more SWE or ML",
+      "status": "PASS",
+      "latency_s": 3.777,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I am more of a software engineer with strong ML and LLM systems experience.",
+      "failures": [],
+      "index": 34
+    },
+    {
+      "question": "what roles are you targeting",
+      "status": "PASS",
+      "latency_s": 2.248,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "ML Systems / Voice AI Engineer and similar full-time roles while completing final semester at University of North North Texas",
+      "failures": [],
+      "index": 35
+    },
+    {
+      "question": "what locations are you open to",
+      "status": "PASS",
+      "latency_s": 2.864,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Open to remote, on-site, or hybrid (US-based preferred)",
+      "failures": [],
+      "index": 36
+    },
+    {
+      "question": "are you open to relocation",
+      "status": "PASS",
+      "latency_s": 3.015,
+      "confidence": "medium",
+      "sources_count": 1,
+      "answer": "The materials do not specify whether relocation is a deal-breaker or a consideration, but they mention that the location preference is open to remote, on-site, or hybrid (US-based preferred). This suggests that relocation may be an option, but it's not explicitly stated as something you would avoid.",
+      "failures": [],
+      "index": 37
+    },
+    {
+      "question": "what type of company are you looking for",
+      "status": "PASS",
+      "latency_s": 3.98,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "Avtar Inc. is a company in the ML Systems / Voice AI Engineer role, but I don't have specific information on what type of company they are looking for based on my materials. However, Avtar Inc.\nis mentioned as one of the companies where I worked as an ML Systems / Voice AI Engineer from Sep 2024 to Feb 2026.",
+      "failures": [],
+      "index": 38
+    },
+    {
+      "question": "what is your availability",
+      "status": "PASS",
+      "latency_s": 0.011,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "I'm actively recruiting for new grad and entry-level roles. I'm graduating in May 2026, and I'm open to remote, on-site, or hybrid opportunities in the US.",
+      "failures": [],
+      "index": 39
+    },
+    {
+      "question": "when can you join",
+      "status": "PASS",
+      "latency_s": 0.003,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "I'm actively recruiting for new grad and entry-level roles. I'm graduating in May 2026, and I'm open to remote, on-site, or hybrid opportunities in the US.",
+      "failures": [],
+      "index": 40
+    },
+    {
+      "question": "how do you approach testing",
+      "status": "PASS",
+      "latency_s": 4.853,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "I approach testing by identifying edge cases and failure modes through clear requirements and understanding constraints such as performance, cost, reliability, and timeline. I use test-driven development and mock objects to ensure comprehensive coverage of the application. My approach is centered around getting alignment before building, which emphasizes the importance of proper testing in preventing rework and delivering better products.",
+      "failures": [],
+      "index": 41
+    },
+    {
+      "question": "how do you approach debugging",
+      "status": "PASS",
+      "latency_s": 6.596,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "Based on the provided information, I would approach debugging by following my process of Reproduce, Trace, Understand, Fix carefully, and Monitor. This systematic detective work involves reliably triggering the bug under exact conditions (Reproduce), tracing execution using logs, debugger, profiler, and stack traces (Trace), identifying the root cause rather than just symptoms (Understand), addressing the root cause while verifying it doesn't break other components (Fix carefully), and adding logging/alerts to catch similar issues in the future (Monitor). This approach is supported by my debugging philosophy, which emphasizes reproducing the bug, tracing execution, understanding the root cause, fixing carefully, and monitoring.",
+      "failures": [],
+      "index": 42
+    },
+    {
+      "question": "how do you think about reliability",
+      "status": "PASS",
+      "latency_s": 4.048,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I prioritize reliability by designing systems to fail visibly and testing error paths as carefully as the happy path. I value timeouts, retries, circuit breakers, and bulkheads, which helps me ensure graceful degradation in case of failures. This approach allows me to catch issues before production through integration tests.",
+      "failures": [],
+      "index": 43
+    },
+    {
+      "question": "how do you handle production incidents",
+      "status": "PASS",
+      "latency_s": 5.122,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I followed a structured approach to handle production incidents. First, I investigated the root cause of the issue, which involved analyzing logs and monitoring data. Then, I implemented fixes to resolve the problem. Additionally, I built monitoring systems to detect similar issues in the future. Furthermore, I documented my process for incident response so that it could be used by others. This approach allowed me to identify and fix problems efficiently while ensuring reliability and scalability.",
+      "failures": [],
+      "index": 44
+    },
+    {
+      "question": "how do you communicate tradeoffs",
+      "status": "PASS",
+      "latency_s": 3.25,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I communicate tradeoffs by explaining the technical approach used, highlighting the benefits of using RAG alongside LLM chat, and discussing the edge cases that required careful consideration during production deployment.",
+      "failures": [],
+      "index": 45
+    },
+    {
+      "question": "what are your strengths",
+      "status": "PASS",
+      "latency_s": 5.116,
+      "confidence": "high",
+      "sources_count": 2,
+      "answer": "My strengths lie in the unusual combination of systems design (FastAPI, Spring Boot, databases) and AI/ML (RAG, agents, structured generation), making me a strong fit for roles where both matter. I possess expertise in production systems experience, with notable projects such as Avtar (Voice AI Systems) and Niro AI (Multi-Agent Orchestration).",
+      "failures": [],
+      "index": 46
+    },
+    {
+      "question": "what are your growth areas",
+      "status": "PASS",
+      "latency_s": 5.564,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "Based on the provided materials, I see that I have hands-on experience in backend systems, production AI, and full-stack development. However, according to the target_roles.md, Pure ML research roles without room for growth and learning are not a good fit for me. Additionally, environments prioritizing legacy systems over new problems also don't align with my interests. My strongest areas are backend engineering, production AI, and full-stack development, which suggests that I'm looking for roles where engineering discipline and AI systems matter.",
+      "failures": [],
+      "index": 47
+    },
+    {
+      "question": "summarize your background in two sentences",
+      "status": "PASS",
+      "latency_s": 3.516,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I am a Computer Science student at the University of North Texas, graduating in May 2026. Previously, I held a Full-time role as ML Systems / Voice AI Engineer at Avtar Inc., where I worked from September 2024 to February 2026.",
+      "failures": [],
+      "index": 48
+    },
+    {
+      "question": "why should we hire you",
+      "status": "PASS",
+      "latency_s": 5.828,
+      "confidence": "high",
+      "sources_count": 1,
+      "answer": "I have built complete RAG pipelines with TF-IDF and embedding-based retrieval, including semantic search with multiple embedding models. I also implemented the hybrid retrieval approach with semantic + keyword fallback, which provided better results for edge cases. Additionally, I integrated RAG with LLM chat to generate grounded, source-cited responses. However, please note that my experience is limited to production deployment and monitoring of quality, handling edge cases, and graceful degradation.",
+      "failures": [],
+      "index": 49
+    },
+    {
+      "question": "can you share your resume link",
+      "status": "PASS",
+      "latency_s": 1.649,
+      "confidence": "low",
+      "sources_count": 1,
+      "answer": "I could not produce a grounded reply from the model output; please try again.",
+      "failures": [],
+      "index": 50
+    }
+  ]
+}

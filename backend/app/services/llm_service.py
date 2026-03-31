@@ -19,6 +19,16 @@ from app.services.prompts import (
 
 logger = logging.getLogger(__name__)
 
+_OLLAMA_HTTP_CLIENT: httpx.AsyncClient | None = None
+
+
+def _get_ollama_http_client() -> httpx.AsyncClient:
+    """Reuse one async HTTP client to avoid repeated connection setup overhead."""
+    global _OLLAMA_HTTP_CLIENT
+    if _OLLAMA_HTTP_CLIENT is None:
+        _OLLAMA_HTTP_CLIENT = httpx.AsyncClient(timeout=120.0)
+    return _OLLAMA_HTTP_CLIENT
+
 ConfidenceLevel = Literal["high", "medium", "low"]
 SOCIAL_QUERIES = {
     "hi",
@@ -459,10 +469,10 @@ async def _call_ollama_chat(
         ],
         "stream": False,
     }
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        r = await client.post(url, json=body)
-        r.raise_for_status()
-        data = r.json()
+    client = _get_ollama_http_client()
+    r = await client.post(url, json=body)
+    r.raise_for_status()
+    data = r.json()
     content = data.get("message", {}).get("content", "")
     if not isinstance(content, str):
         raise ValueError("Unexpected Ollama chat response shape")
@@ -486,13 +496,13 @@ async def _call_ollama_chat_stream(
         ],
         "stream": True,
     }
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream("POST", url, json=body) as r:
-            r.raise_for_status()
-            async for line in r.aiter_lines():
-                if line:
-                    data = json.loads(line)
-                    yield data
+    client = _get_ollama_http_client()
+    async with client.stream("POST", url, json=body) as r:
+        r.raise_for_status()
+        async for line in r.aiter_lines():
+            if line:
+                data = json.loads(line)
+                yield data
 
 
 def _parse_json_loose(raw: str) -> dict[str, object]:

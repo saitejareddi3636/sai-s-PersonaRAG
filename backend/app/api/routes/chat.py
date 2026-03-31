@@ -14,10 +14,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.core.config import get_settings
 from app.rag.retrieve import retrieve_top_k
-from app.schemas.chat import AudioMetadata, ChatRequest, ChatResponse, RetrievalHitSchema, SourceCitation
+from app.schemas.chat import ChatRequest, ChatResponse, RetrievalHitSchema, SourceCitation
 from app.services import llm_service
 from app.services.session_store import get_session_store
-from app.services.tts_service import get_tts_backend
+from app.services.voice_service import VoiceOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ async def chat(request: Request, body: ChatRequest) -> JSONResponse:
     audio_metadata = None
     tts_error: str | None = None
     if body.include_tts:
-        audio_metadata, tts_error = await _synthesize_answer_audio(result.answer, settings)
+        audio_metadata, tts_error = await VoiceOrchestrator.synthesize_answer_audio(result.answer, settings)
 
     payload = ChatResponse(
         answer=result.answer,
@@ -155,64 +155,3 @@ async def chat_stream(body: ChatRequest):
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
-
-
-_TTS_MAX_CHARS = 12000
-
-
-async def _synthesize_answer_audio(
-    text: str, settings
-) -> tuple[AudioMetadata | None, str | None]:
-    """
-    Returns (metadata, error_message). error_message is set only on failure.
-    """
-    tts_text = (text or "").strip()
-    if not tts_text:
-        return None, "Nothing to synthesize (empty answer)."
-
-    if len(tts_text) > _TTS_MAX_CHARS:
-        tts_text = tts_text[: _TTS_MAX_CHARS - 1] + "…"
-
-    try:
-        local_service_url = getattr(settings, "tts_service_url", "http://localhost:9000")
-        clean_url = getattr(settings, "clean_tts_url", "http://127.0.0.1:8010")
-        backend = get_tts_backend(
-            settings.tts_provider,
-            service_url=local_service_url,
-            clean_tts_url=clean_url,
-        )
-        result = await backend.synthesize(tts_text)
-
-        if result.get("success"):
-            logger.info("Answer audio synthesized: %sms", result.get("duration_ms"))
-            url = result.get("audio_url")
-            if not url and result.get("audio_wav_bytes"):
-                import base64
-
-                b64 = base64.b64encode(result["audio_wav_bytes"]).decode("ascii")
-                url = f"data:audio/wav;base64,{b64}"
-            return (
-                AudioMetadata(
-                    audio_url=url,
-                    audio_path=result.get("audio_path"),
-                    duration_ms=result.get("duration_ms"),
-                    provider=result.get("provider", "unknown"),
-                ),
-                None,
-            )
-
-        msg = result.get("message") or "TTS synthesis failed."
-        logger.debug("TTS synthesis failed: %s", msg)
-        hint = (
-            f"{msg} "
-            "If using clean-xtts: start the service (see clean-tts/README.md) on "
-            f"{clean_url}, or set TTS_PROVIDER=mock in backend/.env for a silent test clip."
-        )
-        return None, hint
-
-    except Exception as e:
-        logger.warning("Error attempting TTS synthesis: %s", e)
-        return (
-            None,
-            f"{e!s} — check TTS_PROVIDER and that the TTS service is reachable.",
-        )
