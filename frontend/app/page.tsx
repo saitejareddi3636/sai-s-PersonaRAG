@@ -1,32 +1,51 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ChatShell } from "@/components/chat/chat-shell";
-import { Hero } from "@/components/sections/hero";
 import { Intro } from "@/components/sections/intro";
+import { ModeEntryHero } from "@/components/sections/mode-entry-hero";
 import { QuickFacts } from "@/components/sections/quick-facts";
 import { SuggestedQuestionsCta } from "@/components/sections/suggested-questions-cta";
 
-export default function HomePage() {
+type HomePageProps = {
+  searchParams?: Promise<{
+    mode?: string;
+  }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const selectedMode = params?.mode === "voice" ? "voice" : "chat";
+  const isChatSelected = selectedMode === "chat";
+  const isVoiceSelected = selectedMode === "voice";
+
   return (
     <>
-      <Hero />
+      <ModeEntryHero currentMode={selectedMode} />
       <Intro />
       <QuickFacts />
       <SuggestedQuestionsCta />
-      <div id="chat" className="scroll-mt-16 border-t border-zinc-200/80 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/30">
+      <div id="chat" className="scroll-mt-16 border-t border-zinc-200/70 bg-[linear-gradient(180deg,rgba(247,248,250,0.7),rgba(243,245,248,0.92))] dark:border-zinc-800 dark:bg-zinc-950/30">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-          <div className="mb-8 max-w-2xl">
+          <div className="mb-8 max-w-3xl">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              Live conversation
+              {isChatSelected ? "Chat workspace" : isVoiceSelected ? "Voice workspace" : "Conversation workspace"}
             </h2>
             <p className="mt-2 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Chat with the portfolio assistant
+              {isChatSelected
+                ? "Chat workspace is ready"
+                : isVoiceSelected
+                  ? "Voice workspace is ready"
+                  : "Continue with chat or voice"}
             </p>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Same experience you&apos;d demo in a screen—grounded answers and visible sources.
+              {isChatSelected
+                ? "Ask directly or use a starter question. Replies stay grounded on portfolio materials and include supporting context."
+                : isVoiceSelected
+                  ? "Use the microphone controls below to ask spoken questions and get grounded responses with transcript plus voice playback."
+                  : "Uses the same grounded assistant with source visibility and session continuity."}
             </p>
           </div>
           <ChatShell>
-            <ChatPanel />
+            <ChatPanel initialMode={selectedMode} />
           </ChatShell>
         </div>
       </div>

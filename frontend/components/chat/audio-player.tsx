@@ -7,11 +7,13 @@ type AudioPlayerProps = {
   audio: AudioMetadata;
   /** Start playback as soon as the clip is ready (user already interacted by sending a message). */
   autoPlay?: boolean;
+  compact?: boolean;
 };
 
-export function AudioPlayer({ audio, autoPlay = true }: AudioPlayerProps) {
+export function AudioPlayer({ audio, autoPlay = true, compact = false }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   /**
    * Revoke the previous blob URL when `audio_url` changes — not on unmount.
@@ -41,7 +43,10 @@ export function AudioPlayer({ audio, autoPlay = true }: AudioPlayerProps) {
 
     el.load();
     if (autoPlay) {
-      void el.play().catch(() => {
+      void el.play().then(() => {
+        setAutoplayBlocked(false);
+      }).catch(() => {
+        setAutoplayBlocked(true);
         /* Autoplay blocked, unsupported source, or decode error — user can tap Play */
       });
     }
@@ -53,7 +58,9 @@ export function AudioPlayer({ audio, autoPlay = true }: AudioPlayerProps) {
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
-        void audioRef.current.play().catch(() => setIsPlaying(false));
+        void audioRef.current.play().then(() => {
+          setAutoplayBlocked(false);
+        }).catch(() => setIsPlaying(false));
       }
     }
   };
@@ -81,12 +88,37 @@ export function AudioPlayer({ audio, autoPlay = true }: AudioPlayerProps) {
   const needsCrossOrigin =
     audio.audio_url.startsWith("http://") || audio.audio_url.startsWith("https://");
 
+  if (compact) {
+    return (
+      <div className="mt-3">
+        <audio
+          ref={audioRef}
+          src={audio.audio_url}
+          preload="auto"
+          onEnded={handleEnded}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          {...(needsCrossOrigin ? { crossOrigin: "anonymous" as const } : {})}
+        />
+        {autoplayBlocked ? (
+          <button
+            type="button"
+            onClick={handlePlayClick}
+            className="rounded-md border border-zinc-200/90 bg-white px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:border-sky-300 hover:bg-sky-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600"
+          >
+            Play voice
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white/60 px-3 py-2.5 dark:border-zinc-700/80 dark:bg-zinc-900/30">
+    <div className="mt-3 flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-[0_10px_20px_-18px_rgba(15,23,42,0.35)] dark:border-zinc-700/80 dark:bg-zinc-900/30">
       <button
         type="button"
         onClick={handlePlayClick}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200/80 text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-zinc-700/80 dark:text-zinc-100 dark:hover:bg-zinc-600"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 transition-colors hover:bg-sky-50 hover:text-sky-700 dark:bg-zinc-700/80 dark:text-zinc-100 dark:hover:bg-zinc-600"
         title={isPlaying ? "Pause" : "Play"}
         aria-label={isPlaying ? "Pause audio" : "Play audio"}
       >

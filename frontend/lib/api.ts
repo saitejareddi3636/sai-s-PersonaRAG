@@ -46,6 +46,18 @@ export type ChatResponse = {
   retrieval_error?: string | null;
 };
 
+export type VoiceChatResponse = ChatResponse & {
+  transcript: string;
+  stt_provider: string;
+  stt_language?: string | null;
+};
+
+export type VoiceChunkTranscriptResponse = {
+  transcript: string;
+  stt_provider: string;
+  stt_language?: string | null;
+};
+
 export class ChatApiError extends Error {
   constructor(
     message: string,
@@ -82,7 +94,63 @@ export async function sendChatMessage(body: ChatRequest): Promise<ChatResponse> 
   return res.json() as Promise<ChatResponse>;
 }
 
-/** Max characters sent to TTS — shorter audio is much faster for XTTS. Full answer still shown in UI. */
+export async function sendVoiceMessage(
+  audioBlob: Blob,
+  sessionId?: string | null,
+): Promise<VoiceChatResponse> {
+  const base = getApiBaseUrl();
+  const form = new FormData();
+  form.append("audio", audioBlob, "voice-input.webm");
+  if (sessionId) {
+    form.append("session_id", sessionId);
+  }
+
+  const res = await fetch(`${base}/api/voice/chat`, {
+    method: "POST",
+    body: form,
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const maybeJson = (await res.json()) as { detail?: string };
+      if (maybeJson?.detail) detail = maybeJson.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ChatApiError(detail || "Voice request failed", res.status);
+  }
+
+  return res.json() as Promise<VoiceChatResponse>;
+}
+
+export async function transcribeVoiceChunk(
+  audioBlob: Blob,
+): Promise<VoiceChunkTranscriptResponse> {
+  const base = getApiBaseUrl();
+  const form = new FormData();
+  form.append("audio", audioBlob, "voice-chunk.webm");
+
+  const res = await fetch(`${base}/api/voice/transcribe`, {
+    method: "POST",
+    body: form,
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const maybeJson = (await res.json()) as { detail?: string };
+      if (maybeJson?.detail) detail = maybeJson.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ChatApiError(detail || "Chunk transcription failed", res.status);
+  }
+
+  return res.json() as Promise<VoiceChunkTranscriptResponse>;
+}
+
+/** Max characters sent to TTS to keep voice replies responsive. Full answer still shown in UI. */
 export const TTS_VOICE_CHAR_BUDGET = 500;
 
 export function textForVoiceTts(full: string): string {
