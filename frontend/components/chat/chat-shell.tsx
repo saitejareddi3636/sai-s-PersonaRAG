@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { RecruiterSnapshot } from "@/components/profile 2/recruiter-snapshot";
+import { RecruiterSnapshot } from "@/components/profile/recruiter-snapshot";
 
 type ChatShellProps = {
   children: ReactNode;
