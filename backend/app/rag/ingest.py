@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -133,7 +133,7 @@ def ingest_documents(
 
     return {
         "version": 1,
-        "generated_at": datetime.now(tz=UTC).isoformat(),
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
         "repo_root": str(root),
         "raw_dir": str(raw),
         "sources": sorted({p.name for p in files}),
