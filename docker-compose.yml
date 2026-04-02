@@ -32,7 +32,8 @@ services:
       # Vercel: set in repo-root .env or shell, e.g. CORS_ORIGINS=https://your-app.vercel.app
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000}
       - LOG_LEVEL=INFO
-      - RETRIEVAL_BACKEND=auto
+      # tfidf: fast boot, no Ollama embed pass. Use auto + nomic-embed-text for semantic RAG.
+      - RETRIEVAL_BACKEND=tfidf
       - RETRIEVAL_TOP_K=5
       - TTS_PROVIDER=mock
       - OLLAMA_BASE_URL=http://ollama:11434
