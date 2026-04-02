@@ -13,11 +13,11 @@ services:
     networks:
       - personarag-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 30s
+      retries: 6
+      start_period: 40s
 
   backend:
     build:
@@ -28,8 +28,9 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - APP_NAME=ai-portfolio-agent API
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+      - "APP_NAME=ai-portfolio-agent API"
+      # Vercel: set in repo-root .env or shell, e.g. CORS_ORIGINS=https://your-app.vercel.app
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000}
       - LOG_LEVEL=INFO
       - RETRIEVAL_BACKEND=auto
       - RETRIEVAL_TOP_K=5
@@ -37,10 +38,11 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_CHAT_MODEL=qwen2.5:3b
       - OLLAMA_EMBED_MODEL=nomic-embed-text
+      # Docker: chunks live under /app/data (see volume below)
+      - INGEST_REPO_ROOT=/app
     env_file:
       - backend/.env
     volumes:
-      - ./backend/app:/app/app
       - ./data:/app/data
     depends_on:
       ollama:
@@ -54,7 +56,10 @@ services:
       retries: 3
       start_period: 10s
 
+  # Omit when the UI is on Vercel: docker compose up -d ollama backend
   frontend:
+    profiles:
+      - local-ui
     build:
       context: ./frontend
       dockerfile: Dockerfile

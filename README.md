@@ -386,8 +386,19 @@ npm run lint
 ### Docker
 
 ```bash
-# Start all services
-docker compose up --build
+# API + Ollama only (e.g. Ubuntu VM; UI on Vercel)
+docker compose up -d --build ollama backend
+./scripts/vm-bootstrap.sh   # first time: pull models + ingest + restart backend
+
+# Fresh Ubuntu VM (Docker + clone + models + ingest)
+# After: ssh -i key.pem ubuntu@IP
+#   bash scripts/oci-install.sh
+
+# Full stack with local Next.js (profile required)
+docker compose --profile local-ui up --build
+
+# Optional: backend bind-mount for hot reload
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile local-ui up --build
 
 # View logs
 docker compose logs -f          # All services
@@ -399,6 +410,8 @@ docker compose exec backend pytest
 # Stop everything
 docker compose down
 ```
+
+**Vercel + VM API:** Open OCI port **8000** to the internet (or terminate TLS on 443). On Vercel set `NEXT_PUBLIC_API_BASE_URL` and `BACKEND_ORIG` to the same API base (e.g. `http://YOUR_PUBLIC_IP:8000`). In repo-root `.env` set `CORS_ORIGINS=https://your-app.vercel.app` for compose (see `compose.env.example`). The Next.js client calls same-origin `/api/*`; rewrites proxy to your VM.
 
 See [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md) for advanced Docker workflows.
 
@@ -627,13 +640,16 @@ The fastest way to run both frontend and backend locally is with Docker Compose.
 **Quick start**
 
 ```bash
-# From the repository root
-docker compose up --build
+# From the repository root — local Next.js + API
+docker compose --profile local-ui up --build
+
+# API + Ollama only (frontend hosted on Vercel)
+docker compose up -d --build ollama backend
 ```
 
 This builds and starts:
 - **Backend**: http://localhost:8000 (FastAPI)
-- **Frontend**: http://localhost:3000 (Next.js)
+- **Frontend** (with `--profile local-ui`): http://localhost:3000 (Next.js)
 
 Health check endpoint: `curl http://localhost:8000/health`
 
@@ -660,7 +676,7 @@ docker compose up --build
 docker compose exec backend pytest
 
 # Run backend ingestion in container
-docker compose exec backend python3 -m app.rag.ingest
+docker compose exec backend python -m app.rag.ingest --repo-root /app
 
 # Drop into backend shell for debugging
 docker compose exec backend /bin/bash
@@ -685,19 +701,9 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 **Development workflow**
 
-The `docker-compose.yml` mounts local directories as volumes for hot-reload:
+Default compose mounts only **`data/` → `/app/data`** (VM-ready). Rebuild the backend image after code changes, or add **`docker-compose.dev.yml`** to bind-mount `backend/app` for hot reload.
 
-- `backend/app/` → `/app/app` (code changes reflected immediately)
-- `data/` → `/app/data` (shared data mount)
-- Frontend rebuilds on `next.config.ts` or package changes
-
-To iterate locally:
-
-1. Edit code on your host machine
-2. Changes are reflected in the running container
-3. Backend reloads via uvicorn; frontend via Next.js dev server (if using dev image)
-
-For production builds, simply run `docker compose up --build` and access http://localhost:3000.
+For production-like local UI, run `docker compose --profile local-ui up --build` and open http://localhost:3000.
 
 ## Future voice support
 

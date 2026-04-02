@@ -1,0 +1,7 @@
+# Optional: hot-reload backend code in Docker (local dev).
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile local-ui up
+services:
+  backend:
+    volumes:
+      - ./backend/app:/app/app
+      - ./data:/app/data
