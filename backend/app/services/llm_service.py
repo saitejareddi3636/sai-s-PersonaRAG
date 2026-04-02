@@ -335,6 +335,7 @@ async def generate_grounded_answer(
             model=settings.ollama_chat_model,
             system=SYSTEM_PROMPT,
             user=user_prompt,
+            keep_alive=settings.ollama_keep_alive,
         )
         return _parse_llm_payload(payload, retrieval_hits)
     except Exception as e:
@@ -391,6 +392,7 @@ async def generate_grounded_answer_stream(
             model=settings.ollama_chat_model,
             system=SYSTEM_PROMPT,
             user=user_prompt,
+            keep_alive=settings.ollama_keep_alive,
         ):
             msg = chunk.get("message", {}).get("content", "")
             if msg:
@@ -458,10 +460,11 @@ async def _call_ollama_chat(
     model: str,
     system: str,
     user: str,
+    keep_alive: str = "15m",
 ) -> dict[str, object]:
     """Non-streaming chat call."""
     url = f"{base_url.rstrip('/')}/api/chat"
-    body = {
+    body: dict[str, object] = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -469,6 +472,8 @@ async def _call_ollama_chat(
         ],
         "stream": False,
     }
+    if keep_alive.strip():
+        body["keep_alive"] = keep_alive.strip()
     client = _get_ollama_http_client()
     r = await client.post(url, json=body)
     r.raise_for_status()
@@ -485,10 +490,11 @@ async def _call_ollama_chat_stream(
     model: str,
     system: str,
     user: str,
+    keep_alive: str = "15m",
 ):
     """Stream chat responses from Ollama."""
     url = f"{base_url.rstrip('/')}/api/chat"
-    body = {
+    body: dict[str, object] = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -496,6 +502,8 @@ async def _call_ollama_chat_stream(
         ],
         "stream": True,
     }
+    if keep_alive.strip():
+        body["keep_alive"] = keep_alive.strip()
     client = _get_ollama_http_client()
     async with client.stream("POST", url, json=body) as r:
         r.raise_for_status()
@@ -585,4 +593,33 @@ def _parse_llm_payload(data: dict[str, object], hits: list[RetrievalHit]) -> Gro
         confidence=confidence,
         grounding_note=grounding_note,
         citations=citations,
+    )
+
+
+def parse_streamed_llm_text(
+    full_answer: str, retrieval_hits: list[RetrievalHit]
+) -> GroundedAnswerResult:
+    """
+    Convert accumulated /chat/stream text into structured output.
+    Ollama streams a JSON object; greetings stream plain text.
+    """
+    raw = (full_answer or "").strip()
+    if not raw:
+        cites = (
+            [_hit_to_citation(retrieval_hits[0])] if retrieval_hits else []
+        )
+        return GroundedAnswerResult(
+            answer=OUT_OF_SCOPE_REPLY,
+            confidence="low",
+            grounding_note="Empty model output.",
+            citations=cites,
+        )
+    if raw.startswith("{"):
+        payload = _parse_json_loose(raw)
+        return _parse_llm_payload(payload, retrieval_hits)
+    return GroundedAnswerResult(
+        answer=raw,
+        confidence="high",
+        grounding_note=None,
+        citations=[],
     )

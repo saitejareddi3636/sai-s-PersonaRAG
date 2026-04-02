@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatResponse } from "@/lib/api";
-import {
-  ChatApiError,
-  sendChatMessage,
-  sendVoiceMessage,
-  transcribeVoiceChunk,
-} from "@/lib/api";
+import { ChatApiError, sendChatMessageStream, sendVoiceMessage } from "@/lib/api";
 import { getApiBaseUrl } from "@/lib/config";
 
 import { AssistantMessage } from "./assistant-message";
@@ -64,12 +59,9 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
   const [mode, setMode] = useState<InteractionMode>(initialMode);
   const [isRecording, setIsRecording] = useState(false);
   const [isVoiceSubmitting, setIsVoiceSubmitting] = useState(false);
-  const [liveTranscript, setLiveTranscript] = useState("");
-  const [isTranscribingLive, setIsTranscribingLive] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
-  const liveChunkQueueRef = useRef(Promise.resolve());
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const voiceActionButtonRef = useRef<HTMLButtonElement>(null);
@@ -126,9 +118,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
   const voiceStateLabel = isVoiceSubmitting
     ? "Processing"
     : isRecording
-      ? isTranscribingLive
-        ? "Listening (live transcript)"
-        : "Listening"
+      ? "Listening"
       : "Idle";
 
   const voiceStateHelp = isVoiceSubmitting
@@ -141,25 +131,55 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
     setMessages([]);
     setSessionId(null);
     setError(null);
-    setLiveTranscript("");
   }, []);
 
   const send = useCallback(
     async (question: string) => {
       setError(null);
       const userMsg: UserMessage = { id: nextId(), role: "user", content: question };
-      setMessages((prev) => [...prev, userMsg]);
+      const assistantId = nextId();
+      const assistantStub: AssistantChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        payload: {
+          answer: "",
+          confidence: "medium",
+          grounding_note: null,
+          sources: [],
+          session_id: sessionId,
+          retrieval: [],
+          retrieval_error: null,
+        },
+      };
+      setMessages((prev) => [...prev, userMsg, assistantStub]);
       setLoading(true);
 
       try {
-        const res = await sendChatMessage({
-          question,
-          session_id: sessionId,
-          include_tts: false,
-        });
-        if (res.session_id) setSessionId(res.session_id);
-        const assistantMsg: AssistantChatMessage = { id: nextId(), role: "assistant", payload: res };
-        setMessages((prev) => [...prev, assistantMsg]);
+        await sendChatMessageStream(
+          { question, session_id: sessionId, include_tts: false },
+          {
+            onPreview: (visible) => {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId && m.role === "assistant"
+                    ? { ...m, payload: { ...m.payload, answer: visible } }
+                    : m,
+                ),
+              );
+            },
+            onComplete: (res) => {
+              if (res.session_id) setSessionId(res.session_id);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId && m.role === "assistant"
+                    ? { ...m, payload: res }
+                    : m,
+                ),
+              );
+            },
+            onError: (msg) => setError(msg),
+          },
+        );
       } catch (e) {
         const msg =
           e instanceof ChatApiError
@@ -168,6 +188,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
               ? `${e.message} (API: ${getApiBaseUrl()})`
               : `Something went wrong. Check that the API is running at ${getApiBaseUrl()}.`;
         setError(msg);
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       } finally {
         setLoading(false);
       }
@@ -187,24 +208,10 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
       recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
-          const chunk = event.data;
-          liveChunkQueueRef.current = liveChunkQueueRef.current.then(async () => {
-            setIsTranscribingLive(true);
-            try {
-              const live = await transcribeVoiceChunk(chunk);
-              const text = (live.transcript || "").trim();
-              if (text) {
-                setLiveTranscript((prev) => (prev ? `${prev} ${text}` : text));
-              }
-            } catch {
-              // Ignore intermittent chunk failures; final transcript still runs at stop.
-            } finally {
-              setIsTranscribingLive(false);
-            }
-          });
         }
       };
-      recorder.start(1200);
+      // One blob on stop — avoids N parallel Faster-Whisper runs while recording.
+      recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
     } catch (e) {
@@ -237,7 +244,6 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
 
     try {
       const audioBlob = await blobPromise;
-      await liveChunkQueueRef.current;
       const res = await sendVoiceMessage(audioBlob, sessionId);
 
       if (res.session_id) setSessionId(res.session_id);
@@ -245,7 +251,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
       const userMsg: UserMessage = {
         id: nextId(),
         role: "user",
-        content: res.transcript || liveTranscript,
+        content: res.transcript?.trim() || "Voice message",
       };
       const assistantMsg: AssistantChatMessage = {
         id: nextId(),
@@ -267,11 +273,8 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
       setIsVoiceSubmitting(false);
       mediaRecorderRef.current = null;
       chunksRef.current = [];
-      setLiveTranscript("");
-      setIsTranscribingLive(false);
-      liveChunkQueueRef.current = Promise.resolve();
     }
-  }, [sessionId, liveTranscript]);
+  }, [sessionId]);
 
   return (
     <section
@@ -377,16 +380,9 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
             <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 You are speaking
             </p>
-            {liveTranscript ? (
-              <MessageBubble role="user">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{liveTranscript}</p>
-                <p className="mt-1 text-[11px] opacity-70">
-                  {isTranscribingLive ? "Live transcribing..." : "Listening..."}
-                </p>
-              </MessageBubble>
-            ) : (
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Listening... transcript will appear here.</p>
-            )}
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Listening… transcript appears after you stop the mic (one STT pass, not live).
+            </p>
           </div>
         ) : null}
         {messages.map((m) =>
@@ -405,11 +401,11 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
             </div>
           ),
         )}
-        {loading && (
+        {loading && messages[messages.length - 1]?.role !== "assistant" ? (
           <div className="flex justify-start">
             <ChatLoadingSkeleton />
           </div>
-        )}
+        ) : null}
         <div ref={bottomRef} />
       </div>
 
@@ -468,10 +464,8 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
                 {isVoiceSubmitting
                   ? "Processing audio and drafting response..."
                   : isRecording
-                    ? isTranscribingLive
-                      ? "Recording + transcribing live..."
-                      : "Recording..."
-                      : "Tap mic to speak"}
+                    ? "Recording..."
+                    : "Tap mic to speak"}
               </span>
             </div>
           </div>

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_chat_model: str = "llama3.2:3b"
     ollama_embed_model: str = "nomic-embed-text"
+    # Keeps the chat model loaded between requests (faster after first turn on a small VM).
+    # Set OLLAMA_KEEP_ALIVE=0 to unload immediately after each call.
+    ollama_keep_alive: str = "15m"
     retrieval_weak_score_threshold: float = 0.06
 
     # Session memory (in-process; swap for Redis later)

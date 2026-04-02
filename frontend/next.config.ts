@@ -13,10 +13,7 @@ const backendOrigin =
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
-      {
-        source: "/api/:path*",
-        destination: `${backendOrigin}/api/:path*`,
-      },
+      // /api/* is handled by app/api/[[...path]]/route.ts (Node, long maxDuration on Vercel).
       {
         source: "/outputs/:path*",
         destination: `${backendOrigin}/outputs/:path*`,
