@@ -77,7 +77,12 @@ class FasterWhisperSTTService:
         )
         return self._model
 
-    def transcribe_bytes(self, audio_bytes: bytes) -> STTResult:
+    def transcribe_bytes(
+        self,
+        audio_bytes: bytes,
+        *,
+        vad_parameters: dict | None = None,
+    ) -> STTResult:
         """
         Transcribe audio bytes to text.
 
@@ -100,13 +105,16 @@ class FasterWhisperSTTService:
 
         try:
             model = self._get_model()
-            segments, info = model.transcribe(
-                BytesIO(audio_bytes),
-                beam_size=self.beam_size,
-                vad_filter=self.vad_filter,
-                condition_on_previous_text=False,
-                language=self.language,
-            )
+            transcribe_kw: dict = {
+                "beam_size": self.beam_size,
+                "vad_filter": self.vad_filter,
+                "condition_on_previous_text": False,
+                "language": self.language,
+            }
+            if self.vad_filter and vad_parameters:
+                transcribe_kw["vad_parameters"] = vad_parameters
+
+            segments, info = model.transcribe(BytesIO(audio_bytes), **transcribe_kw)
             
             transcript = " ".join((s.text or "").strip() for s in segments).strip()
             elapsed = time.perf_counter() - t0
@@ -155,6 +163,8 @@ def transcribe_audio_bytes(
     compute_type: str,
     beam_size: int,
     language: str | None = None,
+    vad_filter: bool = True,
+    vad_parameters: dict | None = None,
 ) -> STTResult:
     """
     Transcribe audio bytes to text using Faster-Whisper.
@@ -180,7 +190,7 @@ def transcribe_audio_bytes(
         )
 
     _ = file_suffix  # Kept for interface compatibility
-    cache_key = (model_size, device, compute_type, beam_size)
+    cache_key = (model_size, device, compute_type, beam_size, vad_filter)
     service = _SERVICE_CACHE.get(cache_key)
     if service is None:
         service = FasterWhisperSTTService(
@@ -188,8 +198,9 @@ def transcribe_audio_bytes(
             device=device,
             compute_type=compute_type,
             beam_size=beam_size,
+            vad_filter=vad_filter,
             language=language,
         )
         _SERVICE_CACHE[cache_key] = service
 
-    return service.transcribe_bytes(audio_bytes)
+    return service.transcribe_bytes(audio_bytes, vad_parameters=vad_parameters)

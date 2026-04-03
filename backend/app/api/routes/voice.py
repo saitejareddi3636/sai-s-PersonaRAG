@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
 
+def _stt_vad_options(settings):
+    if not settings.stt_vad_filter:
+        return False, None
+    return True, {
+        "min_silence_duration_ms": settings.stt_vad_min_silence_duration_ms,
+        "speech_pad_ms": settings.stt_vad_speech_pad_ms,
+    }
+
+
 def _compact_tts_text(answer_text: str, max_chars: int) -> str:
     """Build a short spoken version for faster voice playback without changing text answer."""
     text = (answer_text or "").strip()
@@ -55,6 +64,7 @@ async def voice_transcribe_chunk(audio: UploadFile = File(...)):
     _, ext = os.path.splitext(audio.filename or "")
     suffix = ext or ".webm"
 
+    vf, vp = _stt_vad_options(settings)
     stt = transcribe_audio_bytes(
         raw_audio,
         file_suffix=suffix,
@@ -63,6 +73,8 @@ async def voice_transcribe_chunk(audio: UploadFile = File(...)):
         compute_type=settings.stt_compute_type,
         beam_size=settings.stt_beam_size,
         language=settings.stt_language,
+        vad_filter=vf,
+        vad_parameters=vp,
     )
 
     if not stt.success:
@@ -91,6 +103,7 @@ async def voice_chat(
 
     logger.info("voice_pipeline stage=stt start content_type=%s", audio.content_type)
     t0 = time.perf_counter()
+    vf, vp = _stt_vad_options(settings)
     stt = transcribe_audio_bytes(
         raw_audio,
         file_suffix=suffix,
@@ -99,6 +112,8 @@ async def voice_chat(
         compute_type=settings.stt_compute_type,
         beam_size=settings.stt_beam_size,
         language=settings.stt_language,
+        vad_filter=vf,
+        vad_parameters=vp,
     )
     t_stt = time.perf_counter()
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatResponse } from "@/lib/api";
 import { ChatApiError, sendChatMessageStream, sendVoiceMessage } from "@/lib/api";
 import { getApiBaseUrl } from "@/lib/config";
+import { attachVoiceSilenceEndpoint } from "@/lib/voice-endpointing";
 
 import { AssistantMessage } from "./assistant-message";
 import { ChatLoadingSkeleton } from "./chat-loading";
@@ -62,12 +63,25 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  /** Stops browser RMS-based silence watcher (auto end-of-utterance). */
+  const vadDisposeRef = useRef<(() => void) | null>(null);
+  const stopVoiceCaptureAndSendRef = useRef<() => Promise<void>>(async () => {});
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const voiceActionButtonRef = useRef<HTMLButtonElement>(null);
 
+  /** Scroll the message list container (scrollIntoView often misses nested overflow-y-auto + flex). */
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const run = () => {
+      const el = messagesScrollRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+        return;
+      }
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
   }, []);
 
   useEffect(() => {
@@ -75,7 +89,13 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
   }, [messages, loading, scrollToBottom]);
 
   useEffect(() => {
+    if (error) scrollToBottom();
+  }, [error, scrollToBottom]);
+
+  useEffect(() => {
     return () => {
+      vadDisposeRef.current?.();
+      vadDisposeRef.current = null;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
@@ -118,13 +138,13 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
   const voiceStateLabel = isVoiceSubmitting
     ? "Processing"
     : isRecording
-      ? "Listening"
+      ? "Listening (auto-send on pause)"
       : "Idle";
 
   const voiceStateHelp = isVoiceSubmitting
     ? "Transcribing and generating a grounded response."
     : isRecording
-      ? "Speak naturally. Press the mic again when you finish speaking."
+      ? "Speak, then pause ~1s — we send automatically. Tap stop to finish early. Mic uses noise suppression."
       : "Tap the mic to start talking.";
 
   const reset = useCallback(() => {
@@ -196,33 +216,10 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
     [sessionId],
   );
 
-  const startVoiceCapture = useCallback(async () => {
-    if (loading || isVoiceSubmitting || isRecording) return;
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-      // One blob on stop — avoids N parallel Faster-Whisper runs while recording.
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Microphone permission denied.";
-      setError(`Voice capture failed: ${msg}`);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  }, [isRecording, isVoiceSubmitting, loading]);
-
   const stopVoiceCaptureAndSend = useCallback(async () => {
+    vadDisposeRef.current?.();
+    vadDisposeRef.current = null;
+
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === "inactive") {
       return;
@@ -276,9 +273,55 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
     }
   }, [sessionId]);
 
+  useEffect(() => {
+    stopVoiceCaptureAndSendRef.current = stopVoiceCaptureAndSend;
+  }, [stopVoiceCaptureAndSend]);
+
+  const startVoiceCapture = useCallback(async () => {
+    if (loading || isVoiceSubmitting || isRecording) return;
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+
+      vadDisposeRef.current?.();
+      try {
+        vadDisposeRef.current = attachVoiceSilenceEndpoint(stream, () => {
+          void stopVoiceCaptureAndSendRef.current();
+        });
+      } catch {
+        vadDisposeRef.current = null;
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Microphone permission denied.";
+      setError(`Voice capture failed: ${msg}`);
+      vadDisposeRef.current?.();
+      vadDisposeRef.current = null;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, [isRecording, isVoiceSubmitting, loading]);
+
   return (
     <section
-      className={`flex flex-col rounded-2xl border border-zinc-200/80 bg-white/92 shadow-[0_24px_40px_-28px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
+      className={`flex min-h-0 flex-col rounded-2xl border border-zinc-200/80 bg-white/92 shadow-[0_24px_40px_-28px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
       aria-labelledby="chat-heading"
     >
       <div className="flex flex-col gap-3 border-b border-zinc-200/70 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5 dark:border-zinc-800">
@@ -288,7 +331,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {mode === "voice"
-              ? "Voice workflow: speak your question, then receive grounded text and audio response."
+              ? "Speak, pause to auto-send, or tap stop. Noise suppression in the browser; VAD + STT on the server."
               : "Grounded on portfolio data · cite sources below each reply"}
           </p>
           <div
@@ -332,7 +375,10 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
         </button>
       </div>
 
-      <div className="min-h-[min(22rem,45vh)] max-h-[min(28rem,50vh)] space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+      <div
+        ref={messagesScrollRef}
+        className="min-h-[min(22rem,45vh)] max-h-[min(28rem,50vh)] space-y-4 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5 [scrollbar-gutter:stable]"
+      >
         {messages.length === 0 && !loading && (
           mode === "chat" ? (
             <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/75 p-4 shadow-[0_12px_24px_-22px_rgba(15,23,42,0.32)] dark:border-zinc-700/80 dark:bg-zinc-900/40">
@@ -381,7 +427,8 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
                 You are speaking
             </p>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              Listening… transcript appears after you stop the mic (one STT pass, not live).
+              Listening… pause briefly when you are done — we auto-send (or tap stop). Server uses
+              Faster-Whisper with Silero VAD on the clip.
             </p>
           </div>
         ) : null}
@@ -447,7 +494,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
                 className={`flex h-10 w-10 items-center justify-center rounded-full text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 ${
                   isRecording ? "bg-red-600 hover:bg-red-500" : "bg-sky-600 hover:bg-sky-500"
                 }`}
-                aria-label={isRecording ? "Stop recording" : "Start recording"}
+                aria-label={isRecording ? "Stop and send now" : "Start recording"}
               >
                 {isRecording ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -464,7 +511,7 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
                 {isVoiceSubmitting
                   ? "Processing audio and drafting response..."
                   : isRecording
-                    ? "Recording..."
+                    ? "Pause to auto-send, or tap stop"
                     : "Tap mic to speak"}
               </span>
             </div>

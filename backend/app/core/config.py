@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     stt_beam_size: int = 1  # 1=greedy (fastest), >1 uses beam search (slower)
     stt_timeout_s: float = 60.0  # Reserved for future timeout implementation (not currently used)
     stt_language: str | None = None  # Optional: 'en', 'es', 'fr', etc. for faster/better recognition
+    # Faster-Whisper Silero VAD (reduces silence / noise hallucinations at decode time; not live endpointing).
+    stt_vad_filter: bool = True
+    stt_vad_min_silence_duration_ms: int = 550
+    stt_vad_speech_pad_ms: int = 400
 
     # TTS (Text-to-Speech)
     # Provider: piper (default, reliable, local CPU) | mock (silent test) | local-service | f5-tts (disabled)

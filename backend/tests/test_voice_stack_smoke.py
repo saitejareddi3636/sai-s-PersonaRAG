@@ -29,6 +29,12 @@ def test_faster_whisper_stt_smoke() -> None:
     settings = get_settings()
 
     # A silent clip should still exercise model loading and decoding.
+    vp = None
+    if settings.stt_vad_filter:
+        vp = {
+            "min_silence_duration_ms": settings.stt_vad_min_silence_duration_ms,
+            "speech_pad_ms": settings.stt_vad_speech_pad_ms,
+        }
     result = transcribe_audio_bytes(
         _silent_wav_bytes(),
         file_suffix=".wav",
@@ -36,6 +42,9 @@ def test_faster_whisper_stt_smoke() -> None:
         device=settings.stt_device,
         compute_type=settings.stt_compute_type,
         beam_size=settings.stt_beam_size,
+        language=settings.stt_language,
+        vad_filter=settings.stt_vad_filter,
+        vad_parameters=vp,
     )
 
     assert result.provider == "faster-whisper"
