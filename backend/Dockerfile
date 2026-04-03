@@ -2,11 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies + Piper TTS binary (CPU, en_US voice baked below).
+# System deps:
+# - ffmpeg: Faster-Whisper decodes WebM/Opus from browsers (required in cloud).
+# - libgomp1: OpenMP for ctranslate2 / faster-whisper on manylinux-style builds.
+# - curl: docker healthchecks often use curl.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    curl \
     ca-certificates \
+    curl \
+    ffmpeg \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 ARG PIPER_RELEASE=2023.11.14-2
@@ -36,8 +41,12 @@ ENV PIPER_MODEL_PATH=/app/piper-voice/en_US-lessac-low.onnx
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Production Python deps only (no pytest in the cloud image).
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Fail the image build if core imports break (catches missing wheels/deps early).
+RUN python -c "import fastapi, httpx, numpy, sklearn, multipart" \
+    && python -c "import faster_whisper, ctranslate2"
 
 # Copy application
 COPY . .

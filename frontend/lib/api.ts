@@ -189,8 +189,29 @@ export async function sendChatMessageStream(
   let sseBuffer = "";
   let rawAccumulated = "";
 
+  /** FastAPI uses `\n\n`; some proxies use `\r\n\r\n` — `\n\n` alone never matches CRLF. */
+  function takeNextSseEvent(buffer: string): { event: string; rest: string } | null {
+    const idxCrlf = buffer.indexOf("\r\n\r\n");
+    const idxLf = buffer.indexOf("\n\n");
+    let sep = -1;
+    let delimLen = 0;
+    if (idxCrlf >= 0 && (idxLf < 0 || idxCrlf < idxLf)) {
+      sep = idxCrlf;
+      delimLen = 4;
+    } else if (idxLf >= 0) {
+      sep = idxLf;
+      delimLen = 2;
+    } else {
+      return null;
+    }
+    return { event: buffer.slice(0, sep), rest: buffer.slice(sep + delimLen) };
+  }
+
   const processEvent = (rawEvent: string): boolean => {
-    const dataLine = rawEvent.split("\n").find((l) => l.startsWith("data:"));
+    const dataLine = rawEvent
+      .split(/\r?\n/)
+      .map((l) => l.replace(/\r$/, ""))
+      .find((l) => l.startsWith("data:"));
     if (!dataLine) return false;
     const jsonText = dataLine.replace(/^data:\s?/, "").trim();
     if (!jsonText) return false;
@@ -226,15 +247,19 @@ export async function sendChatMessageStream(
   for (;;) {
     const { done, value } = await reader.read();
     if (done) {
+      if (sseBuffer.trim()) {
+        throw new ChatApiError(
+          "Stream ended before a complete reply (check Vercel BACKEND_ORIG / API URL and CORS).",
+        );
+      }
       throw new ChatApiError("Stream ended before completion");
     }
     sseBuffer += decoder.decode(value, { stream: true });
     for (;;) {
-      const sep = sseBuffer.indexOf("\n\n");
-      if (sep < 0) break;
-      const rawEvent = sseBuffer.slice(0, sep);
-      sseBuffer = sseBuffer.slice(sep + 2);
-      if (processEvent(rawEvent)) {
+      const took = takeNextSseEvent(sseBuffer);
+      if (!took) break;
+      sseBuffer = took.rest;
+      if (processEvent(took.event)) {
         return;
       }
     }

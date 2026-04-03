@@ -8,7 +8,7 @@ if [[ ! -d .venv ]]; then
 fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 [[ -f .env ]] || cp .env.example .env
 cd "$ROOT/frontend"
 npm install

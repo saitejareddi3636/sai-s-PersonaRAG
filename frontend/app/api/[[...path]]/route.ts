@@ -33,12 +33,25 @@ async function proxy(req: NextRequest, pathSegments: string[] | undefined) {
     body = await req.arrayBuffer();
   }
 
-  const upstream = await fetch(target, {
-    method: req.method,
-    headers,
-    body: body && body.byteLength > 0 ? body : undefined,
-    redirect: "manual",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(target, {
+      method: req.method,
+      headers,
+      body: body && body.byteLength > 0 ? body : undefined,
+      redirect: "manual",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const hint =
+      backendBase().includes("127.0.0.1") || backendBase().includes("localhost")
+        ? " Set BACKEND_ORIG and NEXT_PUBLIC_API_BASE_URL to your public API (e.g. http://YOUR_IP:8000) in Vercel."
+        : "";
+    return NextResponse.json(
+      { detail: `Upstream fetch failed: ${msg}.${hint}` },
+      { status: 502 },
+    );
+  }
 
   const out = new Headers();
   const uct = upstream.headers.get("content-type");

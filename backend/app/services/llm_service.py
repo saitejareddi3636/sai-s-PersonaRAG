@@ -100,9 +100,15 @@ def _is_social_query(question: str) -> bool:
 
 def _social_response(question: str) -> str:
     q = question.strip().lower()
+    base = (
+        "Hi! I can help with Sai's backend + applied AI experience, key projects, and role fit. "
+        "Try asking: 'What are Sai's strongest backend projects?', "
+        "'Summarize PersonaRAG in 4 bullets', or "
+        "'What new grad roles is Sai targeting?'"
+    )
     if q == "hey there":
-        return "Hey there! Happy to help with any question about my background."
-    return "Hello! Happy to help with any question about my background."
+        return base.replace("Hi!", "Hey there!")
+    return base
 
 
 def _is_profile_query(question: str) -> bool:
