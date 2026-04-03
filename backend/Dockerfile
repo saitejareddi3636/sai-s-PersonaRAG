@@ -28,15 +28,15 @@ RUN set -eux; \
     chmod +x /usr/local/bin/piper; \
     rm -rf /tmp/piper /tmp/piper.tgz
 
-# Small / fast English voice (~10MB) for Docker; override PIPER_MODEL_PATH in compose if needed.
+# Male US English, low quality (smaller download than medium/high); override PIPER_MODEL_PATH in compose if needed.
 RUN mkdir -p /app/piper-voice \
-    && curl -fsSL -o /app/piper-voice/en_US-lessac-low.onnx \
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/low/en_US-lessac-low.onnx" \
-    && curl -fsSL -o /app/piper-voice/en_US-lessac-low.onnx.json \
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/low/en_US-lessac-low.onnx.json"
+    && curl -fsSL -o /app/piper-voice/en_US-ryan-low.onnx \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx" \
+    && curl -fsSL -o /app/piper-voice/en_US-ryan-low.onnx.json \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx.json"
 
 ENV PIPER_BINARY=/usr/local/bin/piper
-ENV PIPER_MODEL_PATH=/app/piper-voice/en_US-lessac-low.onnx
+ENV PIPER_MODEL_PATH=/app/piper-voice/en_US-ryan-low.onnx
 
 # Copy requirements
 COPY requirements.txt .

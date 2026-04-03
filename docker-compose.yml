@@ -39,7 +39,7 @@ services:
       # Real speech in container (see backend/Dockerfile). Use mock only for silent tests.
       - TTS_PROVIDER=piper
       - PIPER_BINARY=/usr/local/bin/piper
-      - PIPER_MODEL_PATH=/app/piper-voice/en_US-lessac-low.onnx
+      - PIPER_MODEL_PATH=/app/piper-voice/en_US-ryan-low.onnx
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_CHAT_MODEL=qwen2.5:3b
       # Shorter spoken summary in voice mode = faster Piper (full text answer unchanged).
