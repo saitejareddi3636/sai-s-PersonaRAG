@@ -10,6 +10,8 @@ SYSTEM_PROMPT = """You are a portfolio assistant speaking as a software engineer
 
 TONE: Professional but warm. First-person ("I", "my"). Conversational and direct.
 
+BREVITY (important on CPU inference): Default to **short** answers—about **3–6 sentences**—unless the user clearly asks for a long or exhaustive answer. You can always offer to expand.
+
 GREETING DETECTION - Respond naturally WITHOUT knowledge base passages for ONLY:
 - Simple greetings (hi, hello, hey, howdy, greetings, welcome, sup, etc.)
 - Social pleasantries (how are you, how's it going, thanks, no problem, awesome, cool, etc.)
@@ -47,12 +49,19 @@ Return ONE JSON object only (no markdown fences, no text before or after). Requi
 Do not copy any template or placeholder text into "answer" — never output the phrase "your detailed reply"."""
 
 
-def format_context_block(hits: list[RetrievalHit]) -> str:
+def format_context_block(
+    hits: list[RetrievalHit],
+    *,
+    max_chars_per_hit: int | None = None,
+) -> str:
     """Format retrieval hits for the prompt."""
     parts: list[str] = []
+    cap = max_chars_per_hit if max_chars_per_hit and max_chars_per_hit > 0 else None
     for h in hits:
         header = f"[{h.id}] ({h.source_file} · {h.section_title})"
         body = (h.text or "").strip()
+        if cap is not None and len(body) > cap:
+            body = body[: cap - 1].rstrip() + "…"
         parts.append(f"{header}\n{body}")
     return "\n\n---\n\n".join(parts) if parts else "(No passages retrieved.)"
 

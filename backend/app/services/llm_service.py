@@ -322,7 +322,10 @@ async def generate_grounded_answer(
             citations=[],
         )
 
-    context_block = format_context_block(retrieval_hits)
+    context_block = format_context_block(
+        retrieval_hits,
+        max_chars_per_hit=settings.retrieval_max_chars_per_chunk,
+    )
     conv = format_conversation_prefix(conversation_history)
     user_prompt = USER_PROMPT_TEMPLATE.format(
         context_block=context_block,
@@ -342,6 +345,7 @@ async def generate_grounded_answer(
             system=SYSTEM_PROMPT,
             user=user_prompt,
             keep_alive=settings.ollama_keep_alive,
+            options=_ollama_options(settings),
         )
         return _parse_llm_payload(payload, retrieval_hits)
     except Exception as e:
@@ -383,7 +387,10 @@ async def generate_grounded_answer_stream(
         yield fallback.answer
         return
 
-    context_block = format_context_block(retrieval_hits)
+    context_block = format_context_block(
+        retrieval_hits,
+        max_chars_per_hit=settings.retrieval_max_chars_per_chunk,
+    )
     conv = format_conversation_prefix(conversation_history)
     user_prompt = USER_PROMPT_TEMPLATE.format(
         context_block=context_block,
@@ -399,6 +406,7 @@ async def generate_grounded_answer_stream(
             system=SYSTEM_PROMPT,
             user=user_prompt,
             keep_alive=settings.ollama_keep_alive,
+            options=_ollama_options(settings),
         ):
             msg = chunk.get("message", {}).get("content", "")
             if msg:
@@ -460,6 +468,16 @@ def _hit_to_citation(h: RetrievalHit) -> Citation:
     )
 
 
+def _ollama_options(settings: Settings) -> dict[str, int] | None:
+    """Ollama generation limits — major CPU latency lever for local Qwen/Llama."""
+    opts: dict[str, int] = {}
+    if settings.ollama_num_ctx is not None and settings.ollama_num_ctx > 0:
+        opts["num_ctx"] = settings.ollama_num_ctx
+    if settings.ollama_num_predict is not None and settings.ollama_num_predict > 0:
+        opts["num_predict"] = settings.ollama_num_predict
+    return opts or None
+
+
 async def _call_ollama_chat(
     *,
     base_url: str,
@@ -467,6 +485,7 @@ async def _call_ollama_chat(
     system: str,
     user: str,
     keep_alive: str = "15m",
+    options: dict[str, int] | None = None,
 ) -> dict[str, object]:
     """Non-streaming chat call."""
     url = f"{base_url.rstrip('/')}/api/chat"
@@ -478,6 +497,8 @@ async def _call_ollama_chat(
         ],
         "stream": False,
     }
+    if options:
+        body["options"] = options
     if keep_alive.strip():
         body["keep_alive"] = keep_alive.strip()
     client = _get_ollama_http_client()
@@ -497,6 +518,7 @@ async def _call_ollama_chat_stream(
     system: str,
     user: str,
     keep_alive: str = "15m",
+    options: dict[str, int] | None = None,
 ):
     """Stream chat responses from Ollama."""
     url = f"{base_url.rstrip('/')}/api/chat"
@@ -508,6 +530,8 @@ async def _call_ollama_chat_stream(
         ],
         "stream": True,
     }
+    if options:
+        body["options"] = options
     if keep_alive.strip():
         body["keep_alive"] = keep_alive.strip()
     client = _get_ollama_http_client()

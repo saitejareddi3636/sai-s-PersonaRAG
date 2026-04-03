@@ -34,14 +34,18 @@ services:
       - LOG_LEVEL=INFO
       # tfidf: fast boot, no Ollama embed pass. Use auto + nomic-embed-text for semantic RAG.
       - RETRIEVAL_BACKEND=tfidf
-      # Lower K = less context in the prompt = faster LLM (slightly less recall).
-      - RETRIEVAL_TOP_K=3
+      # Lower K = less context in the prompt = faster LLM on CPU (slightly less recall).
+      - RETRIEVAL_TOP_K=2
       # Real speech in container (see backend/Dockerfile). Use mock only for silent tests.
       - TTS_PROVIDER=piper
       - PIPER_BINARY=/usr/local/bin/piper
       - PIPER_MODEL_PATH=/app/piper-voice/en_US-ryan-low.onnx
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_CHAT_MODEL=qwen2.5:3b
+      # Shorter generations + smaller KV cache = much faster on a CPU VM (tune up if answers truncate).
+      - OLLAMA_NUM_PREDICT=320
+      - OLLAMA_NUM_CTX=2048
+      - RETRIEVAL_MAX_CHARS_PER_CHUNK=1000
       # Shorter spoken summary in voice mode = faster Piper (full text answer unchanged).
       - VOICE_TTS_MAX_CHARS=280
       - OLLAMA_EMBED_MODEL=nomic-embed-text

@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     # Keeps the chat model loaded between requests (faster after first turn on a small VM).
     # Set OLLAMA_KEEP_ALIVE=0 to unload immediately after each call.
     ollama_keep_alive: str = "15m"
+    # CPU latency: cap generation and context (Ollama /api/chat "options"). None = omit (Ollama defaults).
+    ollama_num_predict: int | None = 384
+    ollama_num_ctx: int | None = 2048
     retrieval_weak_score_threshold: float = 0.06
+    # Truncate each retrieved chunk in the LLM prompt (smaller prompt = faster on CPU).
+    retrieval_max_chars_per_chunk: int = 1200
 
     # Session memory (in-process; swap for Redis later)
     session_max_messages: int = 12
