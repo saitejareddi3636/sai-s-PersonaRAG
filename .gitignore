@@ -49,6 +49,7 @@ Thumbs.db
 !.vscode/settings.json
 
 # Misc
+pytest-last.txt
 *.swp
 *.swo
 .turbo

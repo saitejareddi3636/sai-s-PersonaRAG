@@ -8,11 +8,13 @@ from app.services.session_store import reset_session_store_for_tests
 
 def pytest_report_header(config):
     return [
-        "PersonaRAG: default tests are in-process (TestClient).",
-        "  LLM (/api/chat): needs Ollama at OLLAMA_BASE_URL with OLLAMA_CHAT_MODEL pulled.",
-        "  Real STT+TTS: RUN_VOICE_SMOKE=1 pytest tests/test_voice_stack_smoke.py -s",
-        "  Live HTTP (docker/VM API): LIVE_API_BASE=http://127.0.0.1:8000 pytest tests/test_api_stack_live_http.py -s",
-        "  Script (same as live): python scripts/check_stack.py",
+        "PersonaRAG: for LOUD local LLM+STT+TTS output (not pytest), run:",
+        "    cd backend && python scripts/verify_local_stack.py",
+        "Default pytest tests are in-process (TestClient).",
+        "  LLM: Ollama at OLLAMA_BASE_URL + model pulled.",
+        "  Real STT+TTS in tests: RUN_VOICE_SMOKE=1 pytest tests/test_voice_stack_smoke.py -s",
+        "  Live HTTP: LIVE_API_BASE=... pytest tests/test_api_stack_live_http.py -s",
+        "  Or: python scripts/check_stack.py",
     ]
 
 
