@@ -198,20 +198,54 @@ def _employer_work_history_from_hits(question: str, hits: list[RetrievalHit]) ->
     )
     if not any(t in q for t in triggers):
         return None
+
+    def _bullet_block(text: str) -> str | None:
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("-")]
+        if len(lines) < 2:
+            return None
+        joined = "\n".join(lines[:10])
+        # Must look like employment (company-ish bullets), not generic lists
+        blob = joined.lower()
+        if not any(
+            k in blob
+            for k in (
+                "inc.",
+                "llc",
+                "corp",
+                "chase",
+                "jpmorgan",
+                "intuit",
+                "university",
+                "avtar",
+                "niro",
+                "engineer",
+                "instructor",
+            )
+        ):
+            return None
+        return (
+            "From my portfolio materials, here’s where I work and where I’ve worked:\n"
+            f"{joined}"
+        )
+
     for h in hits:
         title = (h.section_title or "").lower()
         body = (h.text or "").strip()
         if not body:
             continue
         if "where i work" in title or "work / worked" in title or "where i work / worked" in body.lower():
-            lines = [ln.strip() for ln in body.splitlines() if ln.strip().startswith("-")]
-            if lines:
-                bullets = "\n".join(lines[:10])
-                return (
-                    "From my portfolio materials, here’s where I work and where I’ve worked:\n"
-                    f"{bullets}"
-                )
+            block = _bullet_block(body)
+            if block:
+                return block
             return "From my portfolio materials:\n\n" + body
+
+    for h in hits:
+        body = (h.text or "").strip()
+        if not body:
+            continue
+        block = _bullet_block(body)
+        if block:
+            return block
     return None
 
 

@@ -19,6 +19,57 @@ from app.rag.types import ChunkRecord, RetrievalHit
 
 logger = logging.getLogger(__name__)
 
+
+def _query_asks_employment_location(q: str) -> bool:
+    """Employer questions TF–IDF often ranks poorly — we pin the work-history chunk."""
+    s = (q or "").lower()
+    return any(
+        t in s
+        for t in (
+            "company",
+            "work at",
+            "where do you work",
+            "where you work",
+            "employer",
+            "work for",
+            "who do you work",
+            "currently work",
+            "full-time job",
+        )
+    )
+
+
+def _pin_work_history_chunk(
+    hits: list[RetrievalHit], top_k: int, settings: Settings
+) -> list[RetrievalHit]:
+    try:
+        path = resolve_chunks_path(settings)
+        chunks = load_processed_chunks(path)
+    except Exception:
+        return hits
+    pin: ChunkRecord | None = None
+    for c in chunks:
+        st = (c.get("section_title") or "").lower()
+        if "where i work" in st:
+            pin = c
+            break
+    if pin is None:
+        return hits
+    pin_id = str(pin.get("id") or "")
+    ph = RetrievalHit(
+        id=pin_id,
+        score=1.0,
+        content_type=str(pin.get("content_type") or "unknown"),
+        source_file=str(pin.get("source_file") or ""),
+        section_title=str(pin.get("section_title") or ""),
+        section_level=int(pin.get("section_level") or 0),
+        text=str(pin.get("text") or ""),
+        metadata=dict(pin.get("metadata") or {}),
+    )
+    rest = [h for h in hits if h.id != pin_id]
+    return [ph, *rest][:top_k]
+
+
 _backend: RetrievalBackend | None = None
 _backend_error: str | None = None
 
@@ -132,6 +183,8 @@ def retrieve_top_k(question: str, k: int | None = None, settings: Settings | Non
     if not q:
         return [], "Empty question"
     hits = backend.search(q, top_k)
+    if _query_asks_employment_location(q):
+        hits = _pin_work_history_chunk(hits, top_k, cfg)
     return hits, None
 
 
