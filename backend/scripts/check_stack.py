@@ -7,6 +7,10 @@ Run from repo with backend deps available, e.g.:
   cd backend && python scripts/check_stack.py
   API_BASE=https://your-api.example.com python scripts/check_stack.py
 
+In-process pytest (same machine, no separate server) with clear failure messages:
+
+  cd backend && pytest tests/test_stack_output_report.py -v
+
 Exit code 0 if all checks pass, 1 otherwise.
 """
 

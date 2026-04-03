@@ -28,6 +28,10 @@ def _silent_wav_bytes(duration_ms: int = 800, sample_rate: int = 16000) -> bytes
 def test_faster_whisper_stt_smoke() -> None:
     settings = get_settings()
 
+    print(
+        "\n[RUN_VOICE_SMOKE] Faster-Whisper: loading model if needed, transcribing silent WAV…",
+        flush=True,
+    )
     # A silent clip should still exercise model loading and decoding.
     vp = None
     if settings.stt_vad_filter:
@@ -50,6 +54,7 @@ def test_faster_whisper_stt_smoke() -> None:
     assert result.provider == "faster-whisper"
     assert result.message is None or "No speech detected" in result.message
     assert "not installed" not in (result.message or "")
+    print(f"[RUN_VOICE_SMOKE] STT result: success={result.success} msg={result.message!r}", flush=True)
 
 
 @pytest.mark.skipif(
@@ -59,6 +64,7 @@ def test_faster_whisper_stt_smoke() -> None:
 def test_piper_tts_smoke() -> None:
     settings = get_settings()
 
+    print("\n[RUN_VOICE_SMOKE] Piper TTS synthesis…", flush=True)
     if settings.tts_provider != "piper":
         pytest.skip("TTS_PROVIDER is not set to 'piper'.")
 
@@ -79,3 +85,5 @@ def test_piper_tts_smoke() -> None:
     assert result.get("success") is True, result.get("message")
     assert result.get("provider") == "piper"
     assert result.get("audio_wav_bytes") is not None
+    n = len(result["audio_wav_bytes"])
+    print(f"[RUN_VOICE_SMOKE] TTS OK: wav_bytes={n}", flush=True)
