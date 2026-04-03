@@ -53,6 +53,10 @@ services:
       - STT_MODEL_SIZE=tiny
       # Skip language detection = faster STT on CPU when you know the language.
       - STT_LANGUAGE=en
+      # Decoder: no timestamp tokens + single temperature pass = lower latency.
+      - STT_WITHOUT_TIMESTAMPS=true
+      # Load Whisper at startup so first voice request is not cold.
+      - STT_WARMUP_ON_STARTUP=true
       # Docker: chunks live under /app/data (see volume below)
       - INGEST_REPO_ROOT=/app
     env_file:

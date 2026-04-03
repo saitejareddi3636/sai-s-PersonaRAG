@@ -19,8 +19,6 @@
 **Professional experience:**
 - **Avtar Inc** (Voice AI Systems): Real-time inference pipelines, model deployment, low-latency systems, guardrails
 - **Niro AI** (Multi-Agent Systems): RAG, tool orchestration, session memory, LLM integration, structured outputs
-- **JPMorgan Chase** (Java Backend): Spring Boot microservices, Kafka, Oracle SQL, enterprise systems
-- **Intuit** (Backend Services): REST APIs, testing, CI/CD, production debugging, high-volume systems
 - **University of North Texas** (Supplemental Instructor & Data Analyst): Teaching, Python tutoring, SQL pipelines
 
 **Featured projects:** Open Claw (agent runtime), Enterprise Support Copilot (RAG), Customer Feedback Intelligence System (NLP), Pretty Good AI (voice QA bot), Event Organizer Platform (real-time systems), Code Time (developer tooling)

@@ -1,3 +1,8 @@
+import os
+
+# Skip Whisper weight load during pytest (faster; RUN_VOICE_SMOKE still loads STT explicitly).
+os.environ.setdefault("STT_WARMUP_ON_STARTUP", "false")
+
 import pytest
 from fastapi.testclient import TestClient
 

@@ -49,6 +49,7 @@ def test_faster_whisper_stt_smoke() -> None:
         language=settings.stt_language,
         vad_filter=settings.stt_vad_filter,
         vad_parameters=vp,
+        without_timestamps=settings.stt_without_timestamps,
     )
 
     assert result.provider == "faster-whisper"

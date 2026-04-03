@@ -22,7 +22,7 @@ questions = [
     ("Tell me about yourself", "Summary, positioning, targeting"),
     ("What are his strongest technical skills?", "Specific techs, no generic list"),
     ("Is he stronger in SWE or ML?", "Intersection/both, with evidence"),
-    ("What backend experience does he have?", "JPMorgan, Intuit, Avtar specific details"),
+    ("What backend experience does he have?", "Avtar, Niro, UNT / projects specific details"),
     ("What production AI systems has he built?", "Voice AI, multi-agent systems with metrics"),
     ("What roles is he targeting?", "New grad entry-level (NOT senior/staff)"),
     ("Tell me about his strongest project", "Specific project with technical depth")
@@ -146,7 +146,7 @@ print()
 print("[CHECK 5] Production Experience Grounding")
 print("-" * 100)
 prod_refs = []
-companies = ['Avtar', 'Niro', 'JPMorgan', 'Intuit', 'UNT']
+companies = ['Avtar', 'Niro', 'UNT']
 for company in companies:
     for chunk in chunks_data.get('chunks', []):
         if company in chunk.get('text', ''):

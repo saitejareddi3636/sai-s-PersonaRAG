@@ -16,8 +16,6 @@ Computer Science student at the University of North Texas (graduating May 2026, 
 
 - Avtar Inc. - ML Systems / Voice AI Engineer (Sep 2024 to Feb 2026, full-time while completing final semester)
 - Niro AI - AI Agent Engineer (Mar 2024 to Aug 2024)
-- JPMorgan Chase & Co. - Java Backend Engineer (Jun 2023 to Dec 2023)
-- Intuit - Backend Software Engineer (Jan 2023 to May 2023)
 - University of North Texas - Supplemental Instructor (Aug 2022 to Present)
 
 ## Availability and location preferences

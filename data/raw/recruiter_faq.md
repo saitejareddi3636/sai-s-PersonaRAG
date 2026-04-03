@@ -56,18 +56,6 @@ See: education.md (CS curriculum), experience.md (roles spanning both), projects
 - RAG integration for knowledge grounding
 - Production scaling and reliability patterns
 
-**JPMorgan (Banking Systems):**
-- Enterprise microservices (Spring Boot)
-- High-volume transaction processing
-- Kafka event streaming
-- Banking domain compliance and reliability
-
-**Intuit (Backend APIs):**
-- REST API design and implementation
-- Database optimization and indexing
-- Testing, CI/CD, production debugging
-- Incident response and reliability
-
 **UNT:**
 - Taught production concepts to students
 - Led office hours on systems thinking and debugging
@@ -76,22 +64,13 @@ See: experience.md for detailed role descriptions
 
 ## How comfortable are you with Java and Spring Boot?
 
-Very comfortable. Spring Boot is one of my primary backend frameworks.
+Solid Java fundamentals from CS coursework (data structures, OOP, concurrency). I have used Spring Boot in academic and project contexts and understand dependency injection, REST controllers, and typical service layout.
 
-**JPMorgan role:** 
-- Built microservices using Spring Boot
-- Database design and optimization
-- Kafka integration for event streaming
-- Testing and CI/CD
+**Primary production backend:** Python (FastAPI) in my ML and agent roles—see Avtar and Niro AI in experience.md.
 
-**Current use:**
-- Used for real-time applications and microservice architecture
-- Good understanding of Spring concepts: dependency injection, lifecycle, configurations
-- Experience with testing frameworks (JUnit, Mockito) and CI/CD integration
+**Java / Spring:** Comfortable reading and contributing to Spring Boot codebases; stronger day-to-day in Python for backend services. I can ramp on Java-heavy teams using coursework and project experience.
 
-I can jump into a Spring Boot codebase and be productive quickly.
-
-See: experience.md (JPMorgan role), projects.md (project technical stacks)
+See: education.md (CS curriculum), projects.md (technical stacks)
 
 ## What's your RAG and agent experience?
 

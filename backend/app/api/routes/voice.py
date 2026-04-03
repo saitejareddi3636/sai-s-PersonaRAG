@@ -75,6 +75,7 @@ async def voice_transcribe_chunk(audio: UploadFile = File(...)):
         language=settings.stt_language,
         vad_filter=vf,
         vad_parameters=vp,
+        without_timestamps=settings.stt_without_timestamps,
     )
 
     if not stt.success:
@@ -114,6 +115,7 @@ async def voice_chat(
         language=settings.stt_language,
         vad_filter=vf,
         vad_parameters=vp,
+        without_timestamps=settings.stt_without_timestamps,
     )
     t_stt = time.perf_counter()
 

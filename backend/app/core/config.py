@@ -41,11 +41,16 @@ class Settings(BaseSettings):
     stt_compute_type: str = "int8"  # int8 (fastest on CPU), int16, float16, float32
     stt_beam_size: int = 1  # 1=greedy (fastest), >1 uses beam search (slower)
     stt_timeout_s: float = 60.0  # Reserved for future timeout implementation (not currently used)
-    stt_language: str | None = None  # Optional: 'en', 'es', 'fr', etc. for faster/better recognition
+    stt_language: str | None = None  # Optional: 'en', 'es', 'fr', etc. — skips lang detection = faster CPU path
+    # Skip timestamp tokens in the decoder (faster; can slightly change wording vs timestamps on).
+    stt_without_timestamps: bool = True
+    # Load Whisper weights at API startup so the first voice request is not paying model load.
+    stt_warmup_on_startup: bool = True
     # Faster-Whisper Silero VAD (reduces silence / noise hallucinations at decode time; not live endpointing).
     stt_vad_filter: bool = True
     stt_vad_min_silence_duration_ms: int = 550
-    stt_vad_speech_pad_ms: int = 400
+    # Slightly lower = less extra audio around speech segments (smaller decode work).
+    stt_vad_speech_pad_ms: int = 320
 
     # TTS (Text-to-Speech)
     # Provider: piper (default, reliable, local CPU) | mock (silent test) | local-service | f5-tts (disabled)

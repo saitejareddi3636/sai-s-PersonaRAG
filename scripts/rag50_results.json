@@ -195,7 +195,7 @@
       "latency_s": 4.272,
       "confidence": "high",
       "sources_count": 1,
-      "answer": "CI/CD experience is mentioned in the JPMorgan role and current use sections of the candidate materials. Specifically, it mentions testing and CI/CD integration, as well as good understanding of Spring concepts and CI/CD integration. The candidate also mentions being able to jump into a Spring Boot codebase and be productive quickly, implying familiarity with CI/CD tools.",
+      "answer": "CI/CD appears in the materials in the context of production deployment (e.g., Docker, GitHub Actions, monitoring and versioning at Avtar), automated testing, and reproducible pipelines described in skills and project sections—not tied to a specific past employer list here.",
       "failures": [],
       "index": 19
     },

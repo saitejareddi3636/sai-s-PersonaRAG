@@ -23,7 +23,8 @@ const DEFAULTS: Required<VoiceSilenceEndpointOptions> = {
   speechRmsThreshold: 0.035,
   silenceRmsThreshold: 0.022,
   minLoudFrames: 5,
-  silenceHoldMs: 1100,
+  /** Slightly shorter = send audio sooner after you stop talking (less STT work on silence). */
+  silenceHoldMs: 900,
   minUtteranceMs: 480,
   maxRecordingMs: 120_000,
 };

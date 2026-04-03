@@ -118,6 +118,7 @@ def check_stt() -> tuple[bool, str]:
             language=s.stt_language,
             vad_filter=s.stt_vad_filter,
             vad_parameters=vp,
+            without_timestamps=s.stt_without_timestamps,
         )
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"

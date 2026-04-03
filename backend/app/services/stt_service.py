@@ -2,9 +2,11 @@ import logging
 import time
 from dataclasses import dataclass
 from io import BytesIO
+from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
-_SERVICE_CACHE: dict[tuple[str, str, str, int], "FasterWhisperSTTService"] = {}
+_ServiceCacheKey = tuple[str, str, str, int, bool, str | None, bool]
+_SERVICE_CACHE: dict[_ServiceCacheKey, "FasterWhisperSTTService"] = {}
 
 # Minimum audio payload size in bytes (~80ms at 16kHz)
 _MIN_AUDIO_SIZE = 2560
@@ -44,6 +46,8 @@ class FasterWhisperSTTService:
         beam_size: int = 1,
         vad_filter: bool = True,
         language: str | None = None,
+        *,
+        without_timestamps: bool = True,
     ):
         self.model_size = model_size
         self.device = device
@@ -51,6 +55,7 @@ class FasterWhisperSTTService:
         self.beam_size = beam_size
         self.vad_filter = vad_filter
         self.language = language
+        self.without_timestamps = without_timestamps
         self._model = None
 
     def _get_model(self):
@@ -105,11 +110,17 @@ class FasterWhisperSTTService:
 
         try:
             model = self._get_model()
+            # Single temperature + greedy avoids multi-pass fallback decoding (major latency win).
             transcribe_kw: dict = {
                 "beam_size": self.beam_size,
+                "best_of": 1,
+                "temperature": [0.0],
                 "vad_filter": self.vad_filter,
                 "condition_on_previous_text": False,
                 "language": self.language,
+                "without_timestamps": self.without_timestamps,
+                "word_timestamps": False,
+                "log_progress": False,
             }
             if self.vad_filter and vad_parameters:
                 transcribe_kw["vad_parameters"] = vad_parameters
@@ -165,6 +176,7 @@ def transcribe_audio_bytes(
     language: str | None = None,
     vad_filter: bool = True,
     vad_parameters: dict | None = None,
+    without_timestamps: bool = True,
 ) -> STTResult:
     """
     Transcribe audio bytes to text using Faster-Whisper.
@@ -190,7 +202,15 @@ def transcribe_audio_bytes(
         )
 
     _ = file_suffix  # Kept for interface compatibility
-    cache_key = (model_size, device, compute_type, beam_size, vad_filter)
+    cache_key: _ServiceCacheKey = (
+        model_size,
+        device,
+        compute_type,
+        beam_size,
+        vad_filter,
+        language,
+        without_timestamps,
+    )
     service = _SERVICE_CACHE.get(cache_key)
     if service is None:
         service = FasterWhisperSTTService(
@@ -200,7 +220,44 @@ def transcribe_audio_bytes(
             beam_size=beam_size,
             vad_filter=vad_filter,
             language=language,
+            without_timestamps=without_timestamps,
         )
         _SERVICE_CACHE[cache_key] = service
 
     return service.transcribe_bytes(audio_bytes, vad_parameters=vad_parameters)
+
+
+def warm_stt_for_settings(settings: Settings) -> None:
+    """
+    Load Faster-Whisper weights once at startup so the first /voice request avoids cold load.
+    Safe to skip on failure (first request will load lazily).
+    """
+    if settings.stt_provider != "faster-whisper":
+        return
+    cache_key: _ServiceCacheKey = (
+        settings.stt_model_size,
+        settings.stt_device,
+        settings.stt_compute_type,
+        settings.stt_beam_size,
+        settings.stt_vad_filter,
+        settings.stt_language,
+        settings.stt_without_timestamps,
+    )
+    service = _SERVICE_CACHE.get(cache_key)
+    if service is None:
+        service = FasterWhisperSTTService(
+            model_size=settings.stt_model_size,
+            device=settings.stt_device,
+            compute_type=settings.stt_compute_type,
+            beam_size=settings.stt_beam_size,
+            vad_filter=settings.stt_vad_filter,
+            language=settings.stt_language,
+            without_timestamps=settings.stt_without_timestamps,
+        )
+        _SERVICE_CACHE[cache_key] = service
+    service._get_model()
+    logger.info(
+        "STT warmup done model=%s device=%s",
+        settings.stt_model_size,
+        settings.stt_device,
+    )

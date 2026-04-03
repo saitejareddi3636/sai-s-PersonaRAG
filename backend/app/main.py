@@ -8,6 +8,7 @@ from app.api.routes import chat, health, tts, voice
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.rag.retrieve import warm_retrieval_index
+from app.services.stt_service import warm_stt_for_settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,11 @@ def create_app() -> FastAPI:
     async def lifespan(_: FastAPI):
         logger.info("starting %s", settings.app_name)
         warm_retrieval_index(settings)
+        if settings.stt_warmup_on_startup:
+            try:
+                warm_stt_for_settings(settings)
+            except Exception as e:
+                logger.warning("STT warmup failed (first voice request will load the model): %s", e)
         logger.info("startup complete — serving requests (GET /health)")
         yield
 
