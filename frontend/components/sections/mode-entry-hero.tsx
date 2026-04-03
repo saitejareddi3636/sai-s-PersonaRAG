@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 type ModeEntryHeroProps = {
@@ -24,6 +25,19 @@ export function ModeEntryHero({ currentMode }: ModeEntryHeroProps) {
     <section className="border-b border-zinc-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,249,251,0.86))] dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-6xl items-center px-4 py-14 sm:px-6 sm:py-18">
         <div className="mx-auto w-full max-w-3xl text-center">
+          <div className="mb-6 flex justify-center sm:mb-7">
+            <div className="relative h-28 w-28 overflow-hidden rounded-full border border-zinc-200/90 bg-zinc-100 shadow-[0_16px_36px_-24px_rgba(15,23,42,0.4)] ring-2 ring-white dark:border-zinc-600 dark:bg-zinc-900 dark:ring-zinc-800">
+              <Image
+                src="/profile-sai.png"
+                alt="Sai Teja Reddy Shaga"
+                fill
+                className="object-cover object-[center_15%]"
+                sizes="112px"
+                priority
+              />
+            </div>
+          </div>
+
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-400">
             AI Portfolio Assistant
           </p>
@@ -36,27 +50,6 @@ export function ModeEntryHero({ currentMode }: ModeEntryHeroProps) {
             Explore early-career backend and applied AI experience through a grounded assistant
             designed for real hiring conversations.
           </p>
-
-          <div className="mt-9 flex justify-center">
-            <div className="relative grid h-28 w-28 place-items-center rounded-full border border-zinc-200/90 bg-white shadow-[0_16px_36px_-24px_rgba(15,23,42,0.35)] dark:border-zinc-700 dark:bg-zinc-900">
-              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.14),transparent_68%)] dark:bg-[radial-gradient(circle_at_center,rgba(250,250,250,0.08),transparent_70%)]" />
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="relative h-10 w-10 text-zinc-800 dark:text-zinc-100"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="8" y="3" width="8" height="12" rx="4" />
-                <path d="M5 11a7 7 0 0 0 14 0" />
-                <path d="M12 18v3" />
-                <path d="M9 21h6" />
-              </svg>
-            </div>
-          </div>
 
           <div className="mt-9 grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Link

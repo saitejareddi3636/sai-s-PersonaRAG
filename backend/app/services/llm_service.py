@@ -10,6 +10,7 @@ import httpx
 
 from app.core.config import Settings
 from app.rag.types import RetrievalHit
+from app.services.prepared_interview import match_prepared_answer
 from app.services.prompts import (
     SYSTEM_PROMPT,
     USER_PROMPT_TEMPLATE,
@@ -323,6 +324,14 @@ async def generate_grounded_answer(
             grounding_note=None,
             citations=[],
         )
+    prepared = match_prepared_answer(q)
+    if prepared:
+        return GroundedAnswerResult(
+            answer=prepared,
+            confidence="high",
+            grounding_note="Prepared interview response (curated Q&A; no LLM).",
+            citations=[],
+        )
     if _is_availability_query(q):
         extracted = _availability_from_hits(retrieval_hits)
         if extracted:
@@ -456,6 +465,11 @@ async def generate_grounded_answer_stream(
 
     if _is_social_query(q):
         yield _social_response(q)
+        return
+
+    prepared = match_prepared_answer(q)
+    if prepared:
+        yield prepared
         return
 
     if retrieval_error or not retrieval_hits:

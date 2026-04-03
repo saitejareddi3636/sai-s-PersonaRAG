@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatResponse } from "@/lib/api";
@@ -325,51 +326,61 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
       aria-labelledby="chat-heading"
     >
       <div className="flex flex-col gap-3 border-b border-zinc-200/70 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5 dark:border-zinc-800">
-        <div className="min-w-0 flex-1">
-          <h2 id="chat-heading" className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {mode === "voice" ? "Talk with the assistant" : "Ask the assistant"}
-          </h2>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {mode === "voice"
-              ? "Speak, pause to auto-send, or tap stop. Noise suppression in the browser; VAD + STT on the server."
-              : "Grounded on portfolio data · cite sources below each reply"}
-          </p>
-          <div
-            className="mt-3 inline-flex rounded-full border border-zinc-200/90 bg-zinc-100/80 p-1 dark:border-zinc-700 dark:bg-zinc-900"
-            role="group"
-            aria-label="Interaction mode"
-          >
-            <button
-              type="button"
-              onClick={() => setMode("chat")}
-              disabled={loading || isRecording || isVoiceSubmitting}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                mode === "chat"
-                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-sky-200 dark:bg-zinc-800 dark:text-zinc-50"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              }`}
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <Image
+            src="/profile-sai.png"
+            alt="Sai Teja Reddy Shaga"
+            width={80}
+            height={80}
+            className="h-16 w-16 shrink-0 rounded-full object-cover object-[center_15%] shadow-[0_10px_28px_-14px_rgba(15,23,42,0.45)] ring-2 ring-zinc-200/90 dark:ring-zinc-600 sm:h-20 sm:w-20"
+            priority
+          />
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <h2 id="chat-heading" className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              {mode === "voice" ? "Talk with the assistant" : "Ask the assistant"}
+            </h2>
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              {mode === "voice"
+                ? "Speak, pause to auto-send, or tap stop. Noise suppression in the browser; VAD + STT on the server."
+                : "Grounded on portfolio data · cite sources below each reply"}
+            </p>
+            <div
+              className="mt-3 inline-flex rounded-full border border-zinc-200/90 bg-zinc-100/80 p-1 dark:border-zinc-700 dark:bg-zinc-900"
+              role="group"
+              aria-label="Interaction mode"
             >
-              Text chat
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("voice")}
-              disabled={loading || isVoiceSubmitting}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                mode === "voice"
-                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-sky-200 dark:bg-zinc-800 dark:text-zinc-50"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              }`}
-            >
-              Voice
-            </button>
+              <button
+                type="button"
+                onClick={() => setMode("chat")}
+                disabled={loading || isRecording || isVoiceSubmitting}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  mode === "chat"
+                    ? "bg-white text-zinc-900 shadow-sm ring-1 ring-sky-200 dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                Text chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("voice")}
+                disabled={loading || isVoiceSubmitting}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  mode === "voice"
+                    ? "bg-white text-zinc-900 shadow-sm ring-1 ring-sky-200 dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                Voice
+              </button>
+            </div>
           </div>
         </div>
         <button
           type="button"
           onClick={reset}
           disabled={loading || isRecording || isVoiceSubmitting}
-          className="shrink-0 rounded-lg border border-zinc-200/90 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-sky-300 hover:bg-sky-50/60 disabled:opacity-40 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="shrink-0 self-center rounded-lg border border-zinc-200/90 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-sky-300 hover:bg-sky-50/60 disabled:opacity-40 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:self-start"
         >
           Reset chat
         </button>
