@@ -391,7 +391,10 @@ docker compose up -d --build ollama backend
 ./scripts/vm-bootstrap.sh   # first time: pull models + ingest + restart backend
 
 # Fresh Ubuntu VM (Docker + clone + models + ingest)
-# After: ssh -i key.pem ubuntu@IP
+# From laptop (use YOUR real key path from OCI — often ~/Downloads/*.pem or *.key):
+#   chmod 400 ~/path/to/your_private_key
+#   ssh -i ~/path/to/your_private_key ubuntu@YOUR_PUBLIC_IP
+# On VM:
 #   bash scripts/oci-install.sh
 
 # Full stack with local Next.js (profile required)

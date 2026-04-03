@@ -28,5 +28,6 @@ docker compose restart backend
 
 echo "Done. Health: curl -sf http://127.0.0.1:8000/health | jq ."
 echo "Open OCI security list: TCP 8000 from Vercel (or 0.0.0.0/0 for testing)."
+echo "Repo-root CORS: cp compose.env.example .env && edit CORS_ORIGINS -> your Vercel URL, then docker compose up -d backend"
 echo "Vercel env: NEXT_PUBLIC_API_BASE_URL=http://YOUR_PUBLIC_IP:8000"
 echo "             BACKEND_ORIG=http://YOUR_PUBLIC_IP:8000   (same value; rewrite target)"

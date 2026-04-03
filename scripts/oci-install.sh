@@ -2,12 +2,14 @@
 #
 # Run ON THE UBUNTU VM after SSH (not from your laptop automation).
 #
-# From your machine:
-#   ssh -i /path/to/your_key.pem ubuntu@YOUR_PUBLIC_IP
+# From your Mac (use the path Oracle gave you for the private key; common places):
+#   chmod 400 ~/Downloads/*.pem ~/Downloads/*.key 2>/dev/null || true
+#   ssh -i ~/Downloads/YOUR_KEY.pem ubuntu@YOUR_PUBLIC_IP
+#   # or: ssh -i ~/.ssh/oci_personarag ubuntu@YOUR_PUBLIC_IP
+#   cd ~/sai-s-PersonaRAG && git pull && bash scripts/oci-install.sh
 #
-# On the VM (copy-paste block at bottom of this file), or:
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_USER/sai-s-PersonaRAG/main/scripts/oci-install.sh | bash
-#   (only after you trust the URL; cloning first is safer)
+# On the VM only (after clone), optional one-liner from GitHub raw (trust the source first):
+#   curl -fsSL https://raw.githubusercontent.com/saitejareddi3636/sai-s-PersonaRAG/main/scripts/oci-install.sh | bash
 #
 set -euo pipefail
 
@@ -102,4 +104,5 @@ echo "Done."
 echo "  API:  http://$(curl -fsL ifconfig.me 2>/dev/null || echo YOUR_PUBLIC_IP):8000"
 echo "  Open OCI ingress: TCP 8000 (and optional 11434 only if you need Ollama from outside)."
 echo "  Vercel: NEXT_PUBLIC_API_BASE_URL + BACKEND_ORIG = http://YOUR_PUBLIC_IP:8000"
-echo "  CORS: add repo-root .env with CORS_ORIGINS=https://your-app.vercel.app then: docker compose up -d backend"
+echo "  CORS: copy compose.env.example -> repo-root .env and set CORS_ORIGINS=https://your-app.vercel.app"
+echo "        then: docker compose up -d backend"
