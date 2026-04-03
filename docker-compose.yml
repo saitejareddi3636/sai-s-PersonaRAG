@@ -34,8 +34,8 @@ services:
       - LOG_LEVEL=INFO
       # tfidf: fast boot, no Ollama embed pass. Use auto + nomic-embed-text for semantic RAG.
       - RETRIEVAL_BACKEND=tfidf
-      # Lower K = less context in the prompt = faster LLM on CPU (slightly less recall).
-      - RETRIEVAL_TOP_K=2
+      # K=3 keeps employer/overview chunks in play for hiring questions; K=2 often dropped them.
+      - RETRIEVAL_TOP_K=3
       # Real speech in container (see backend/Dockerfile). Use mock only for silent tests.
       - TTS_PROVIDER=piper
       - PIPER_BINARY=/usr/local/bin/piper

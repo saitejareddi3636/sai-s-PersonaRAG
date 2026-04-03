@@ -182,6 +182,39 @@ def _extract_keyword_sentence(hits: list[RetrievalHit], keywords: tuple[str, ...
     return None
 
 
+def _employer_work_history_from_hits(question: str, hits: list[RetrievalHit]) -> str | None:
+    """Grounded reply for 'what company', 'where do you work', etc.—avoids LLM inventing employment."""
+    q = question.lower()
+    triggers = (
+        "company",
+        "work at",
+        "where do you work",
+        "where you work",
+        "employer",
+        "work for",
+        "who do you work",
+        "full-time job",
+        "currently work",
+    )
+    if not any(t in q for t in triggers):
+        return None
+    for h in hits:
+        title = (h.section_title or "").lower()
+        body = (h.text or "").strip()
+        if not body:
+            continue
+        if "where i work" in title or "work / worked" in title or "where i work / worked" in body.lower():
+            lines = [ln.strip() for ln in body.splitlines() if ln.strip().startswith("-")]
+            if lines:
+                bullets = "\n".join(lines[:10])
+                return (
+                    "From my portfolio materials, here’s where I work and where I’ve worked:\n"
+                    f"{bullets}"
+                )
+            return "From my portfolio materials:\n\n" + body
+    return None
+
+
 def _fact_answer_from_hits(question: str, hits: list[RetrievalHit]) -> str | None:
     q = question.lower()
     if "rag" in q:
@@ -280,6 +313,21 @@ async def generate_grounded_answer(
                 grounding_note=None,
                 citations=[_hit_to_citation(h) for h in retrieval_hits[:2]],
             )
+    employer = _employer_work_history_from_hits(q, retrieval_hits)
+    if employer:
+        cite_hits = [
+            h
+            for h in retrieval_hits
+            if "where i work" in (h.section_title or "").lower()
+            or "work / worked" in (h.section_title or "").lower()
+        ]
+        cites_src = cite_hits if cite_hits else retrieval_hits[:2]
+        return GroundedAnswerResult(
+            answer=employer,
+            confidence="high",
+            grounding_note=None,
+            citations=[_hit_to_citation(h) for h in cites_src[:3]],
+        )
     factual = _fact_answer_from_hits(q, retrieval_hits)
     if factual:
         return GroundedAnswerResult(
@@ -385,6 +433,11 @@ async def generate_grounded_answer_stream(
             conversation_history=conversation_history,
         )
         yield fallback.answer
+        return
+
+    employer = _employer_work_history_from_hits(q, retrieval_hits)
+    if employer:
+        yield employer
         return
 
     context_block = format_context_block(
