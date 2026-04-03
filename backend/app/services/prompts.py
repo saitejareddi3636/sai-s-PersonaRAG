@@ -38,10 +38,13 @@ USER_PROMPT_TEMPLATE = """Context from candidate materials:
 {context_block}
 {conversation_prefix}Question: {question}
 
-RESPOND AS JSON (required):
-{{"answer": "your detailed reply", "confidence": "high/medium/low", "grounding_note": null, "cited_chunk_ids": ["id1", "id2"]}}
+Return ONE JSON object only (no markdown fences, no text before or after). Required keys:
+- "answer": string — your full first-person reply grounded in the passages (real sentences only)
+- "confidence": "high" | "medium" | "low"
+- "grounding_note": null or a short string
+- "cited_chunk_ids": array of passage ids from the bracket headers above (e.g. ["experience_00001"])
 
-IMPORTANT: Your response MUST be valid JSON that can be parsed. No markdown, no extra text."""
+Do not copy any template or placeholder text into "answer" — never output the phrase "your detailed reply"."""
 
 
 def format_context_block(hits: list[RetrievalHit]) -> str:

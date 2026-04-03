@@ -558,6 +558,43 @@ def _parse_json_loose(raw: str) -> dict[str, object]:
         }
 
 
+_INSTRUCTION_ECHO_ANSWERS = frozenset(
+    {
+        "your detailed reply",
+        "your grounded response",
+        "your complete grounded response",
+        "your full response",
+    }
+)
+
+
+def _answer_is_instruction_echo(answer: str) -> bool:
+    """True if the model repeated prompt boilerplate instead of a real answer."""
+    a = answer.strip().lower()
+    if not a:
+        return False
+    if a in _INSTRUCTION_ECHO_ANSWERS:
+        return True
+    if a in ("…", "...", "n/a", "none", "null"):
+        return True
+    if len(a) <= 120 and "your detailed reply" in a:
+        return True
+    return False
+
+
+def _excerpt_fallback_from_hits(hits: list[RetrievalHit]) -> str:
+    """Honest passage excerpts when the model echoes template text."""
+    parts = [
+        "Here is what I can ground directly from my materials (the model reply looked like a template):"
+    ]
+    for h in hits[:3]:
+        preview = h.text.strip().replace("\n", " ")
+        if len(preview) > 420:
+            preview = preview[:420] + "…"
+        parts.append(f"• [{h.source_file} · {h.section_title}]: {preview}")
+    return "\n\n".join(parts)
+
+
 def _parse_llm_payload(data: dict[str, object], hits: list[RetrievalHit]) -> GroundedAnswerResult:
     answer = str(data.get("answer") or "").strip()
     conf_raw = str(data.get("confidence") or "medium").lower()
@@ -584,6 +621,16 @@ def _parse_llm_payload(data: dict[str, object], hits: list[RetrievalHit]) -> Gro
         answer = OUT_OF_SCOPE_REPLY
         confidence = "low"
         grounding_note = "Model output was empty."
+    elif _answer_is_instruction_echo(answer) and hits:
+        answer = _excerpt_fallback_from_hits(hits)
+        confidence = "medium"
+        grounding_note = (
+            "Model echoed prompt boilerplate; showing the closest retrieved passages instead."
+        )
+    elif _answer_is_instruction_echo(answer):
+        answer = OUT_OF_SCOPE_REPLY
+        confidence = "low"
+        grounding_note = "Model echoed prompt boilerplate with no passages to cite."
     elif re.match(r"^i\s+don'?t?$", answer.lower()):
         answer = OUT_OF_SCOPE_REPLY
         confidence = "low"
