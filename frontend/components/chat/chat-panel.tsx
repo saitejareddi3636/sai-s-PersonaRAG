@@ -8,8 +8,8 @@ import { ChatApiError, sendChatMessageStream, sendVoiceMessage } from "@/lib/api
 import { getApiBaseUrl } from "@/lib/config";
 import { attachVoiceSilenceEndpoint } from "@/lib/voice-endpointing";
 
+import { AgentThinking } from "./agent-thinking";
 import { AssistantMessage } from "./assistant-message";
-import { ChatLoadingSkeleton } from "./chat-loading";
 import { ChatInput } from "./chat-input";
 import { MessageBubble } from "./message-bubble";
 
@@ -443,7 +443,15 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
             </p>
           </div>
         ) : null}
-        {messages.map((m) =>
+        {mode === "voice" && isVoiceSubmitting ? (
+          <div className="flex justify-start">
+            <div className="max-w-[min(100%,40rem)] rounded-2xl border border-zinc-200/80 bg-white/95 px-4 py-3.5 shadow-[0_18px_30px_-24px_rgba(15,23,42,0.32)] dark:border-zinc-700/80 dark:bg-zinc-900/40">
+              <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">Assistant</p>
+              <AgentThinking variant="voice" />
+            </div>
+          </div>
+        ) : null}
+        {messages.map((m, idx) =>
           m.role === "user" ? (
             <MessageBubble key={m.id} role="user">
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
@@ -455,15 +463,16 @@ export function ChatPanel({ className = "", initialMode = "chat" }: ChatPanelPro
                 voicePending={m.role === "assistant" ? m.voicePending : false}
                 voiceError={m.role === "assistant" ? m.voiceError : null}
                 hideAudioControls={mode === "voice"}
+                awaitingFirstToken={
+                  loading &&
+                  idx === messages.length - 1 &&
+                  m.role === "assistant" &&
+                  !(m.payload.answer ?? "").trim()
+                }
               />
             </div>
           ),
         )}
-        {loading && messages[messages.length - 1]?.role !== "assistant" ? (
-          <div className="flex justify-start">
-            <ChatLoadingSkeleton />
-          </div>
-        ) : null}
         <div ref={bottomRef} />
       </div>
 

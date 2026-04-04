@@ -1,4 +1,5 @@
 import type { ChatResponse } from "@/lib/api";
+import { AgentThinking } from "./agent-thinking";
 import { AudioPlayer } from "./audio-player";
 
 type AssistantMessageProps = {
@@ -6,6 +7,8 @@ type AssistantMessageProps = {
   voicePending?: boolean;
   voiceError?: string | null;
   hideAudioControls?: boolean;
+  /** True while waiting for the first token of the streamed answer */
+  awaitingFirstToken?: boolean;
 };
 
 const confidenceLabel: Record<ChatResponse["confidence"], string> = {
@@ -19,8 +22,10 @@ export function AssistantMessage({
   voicePending = false,
   voiceError = null,
   hideAudioControls = false,
+  awaitingFirstToken = false,
 }: AssistantMessageProps) {
   const { answer, confidence, grounding_note, retrieval_error, audio, tts_error } = payload;
+  const showThinking = awaitingFirstToken && !(answer ?? "").trim();
 
   return (
     <div
@@ -30,6 +35,11 @@ export function AssistantMessage({
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200/70 pb-2.5 dark:border-zinc-700/80">
         <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Assistant</span>
+        {showThinking ? (
+          <span className="rounded-md bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-900 dark:bg-sky-950/80 dark:text-sky-200">
+            Working…
+          </span>
+        ) : (
         <span
           className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${
             confidence === "high"
@@ -41,10 +51,15 @@ export function AssistantMessage({
         >
           {confidenceLabel[confidence]}
         </span>
+        )}
       </div>
 
       <div className="pt-3 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100">
-        <p className="whitespace-pre-wrap">{answer}</p>
+        {showThinking ? (
+          <AgentThinking variant="chat" />
+        ) : (
+          <p className="whitespace-pre-wrap">{answer}</p>
+        )}
       </div>
 
       {voicePending && !audio?.audio_url ? (

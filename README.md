@@ -11,8 +11,8 @@ A professional AI-powered portfolio web application that answers recruiter quest
 - Session-aware: Multi-turn conversations with bounded history
 - Fallback-capable: Works without LLM (excerpt mode) or when Ollama unavailable
 - Production-ready: Docker, health checks, structured logging
-- Fully local: Qwen 2.5 chat model + nomic-embed-text embeddings, no external APIs
-- Future voice-ready: TTS infrastructure placeholder for local synthesis
+- **Default path uses no commercial LLM APIs** — chat and (optionally) embeddings run via **self-hosted Ollama** on your own machine or VM; speech uses **Faster-Whisper** + **Piper** locally (see below)
+- Voice-ready: **STT** (Faster-Whisper) and **TTS** (Piper) in the backend container — no cloud speech APIs required for the default setup
 
 ## Why
 
@@ -32,7 +32,33 @@ Traditional portfolios are static; recruiters can't ask follow-up questions. RAG
 - ✅ **Fallback mode**: Returns excerpt-based answers if LLM unavailable
 - ✅ **Docker Compose setup** for single-command local/remote deployment
 - ✅ **Health checks** and structured logging
-- 🔄 **Future TTS support**: Placeholder for F5-TTS local voice synthesis
+- ✅ **Speech pipeline**: **Faster-Whisper** (STT) + **Piper** (TTS), CPU-friendly defaults
+
+## Default stack: no OpenAI / Anthropic / Gemini APIs
+
+The **recommended production setup** for this repo is **fully self-hosted inference** for chat and voice:
+
+| Capability | What runs | Default models / notes |
+|------------|-----------|-------------------------|
+| **Chat (LLM)** | [Ollama](https://ollama.com) over HTTP on your server | **`qwen2.5:3b`** (compose default) — pulled once, stored in a Docker volume |
+| **Retrieval** | TF-IDF (fast, no extra model) or Ollama embeddings | Compose default: **`RETRIEVAL_BACKEND=tfidf`**. Optional: **`nomic-embed-text`** via Ollama for semantic RAG |
+| **STT** | [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) (CTranslate2) in the API container | **`tiny`** Whisper weights + **`en`** language hint in compose (tunable to `base` / `small` for accuracy) |
+| **TTS** | [Piper](https://github.com/rhasspy/piper) (onnx) in the API image | **`en_US-ryan-low`** bundled in the backend Dockerfile |
+
+**You do not need API keys** from OpenAI, Anthropic, Google, etc. for that path. The backend talks to **Ollama** at `OLLAMA_BASE_URL` (e.g. `http://ollama:11434` in Docker).
+
+> **Optional:** The codebase can be configured to use OpenAI-compatible endpoints for embeddings or chat (see env docs). That is **not** the default documented deploy; it exists for flexibility only.
+
+## Deployment: Vercel (frontend) + Oracle Cloud (backend)
+
+| Layer | Where | Why this split |
+|-------|--------|----------------|
+| **Frontend** | **Vercel** (Next.js) | Global CDN, automatic HTTPS, simple Git-based deploys, and **no need to run Node on your VM**. The UI is static/serverless where possible. |
+| **API + Ollama + models** | **Oracle Cloud Infrastructure (OCI)** — e.g. Ubuntu VM + Docker Compose | **GPU-free** stack fits a CPU VM: Ollama + Qwen 3B, Faster-Whisper `tiny`, Piper. You keep **data and inference** on infra you control; predictable cost vs. per-token APIs. |
+
+**How it connects:** The Next.js app uses **same-origin** `/api/*` routes; `next.config` **rewrites** those to your VM’s FastAPI origin (`BACKEND_ORIG` / `NEXT_PUBLIC_API_BASE_URL`). CORS on the backend must allow your Vercel domain (`CORS_ORIGINS` in compose / `.env`).
+
+**Security note:** Prefer **HTTPS** in front of the API (reverse proxy + Let’s Encrypt) for production; mixed content blocks browser calls from `https://` Vercel to raw `http://` VM unless you use rewrites only server-side (Vercel rewrites help here).
 
 ## Architecture
 
@@ -63,21 +89,24 @@ Traditional portfolios are static; recruiters can't ask follow-up questions. RAG
                │
         ┌──────┴──────┬──────────┐
         │             │          │
-    ┌───┴────┐    ┌──┴──┐   ┌──┴──┐
-    │chunks. │    │Ollama   │F5-TTS
-    │json    │    │Local    │(future)
-    └────────┘    └─────┘   └──────┘
+    ┌───┴────┐    ┌──┴──┐   ┌──┴──────┐
+    │chunks. │    │Ollama   │Piper TTS│
+    │json    │    │Local    │+ Faster│
+    └────────┘    └─────┘   │Whisper │
+                            └────────┘
 ```
 
 ## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Next.js 14, TypeScript, Tailwind CSS | Modern web UI |
-| **Backend** | FastAPI, Pydantic, httpx | REST API, validation |
-| **LLM** | Ollama, Qwen 2.5 (3B) | Local chat model |
-| **Embeddings** | Ollama, nomic-embed-text | Local semantic search |
-| **Retrieval** | scikit-learn (TF-IDF) | Fallback keyword search |
+| **Frontend** | Next.js, TypeScript, Tailwind (deploy: **Vercel** typical) | Web UI; proxies API via rewrites |
+| **Backend** | FastAPI, Pydantic, httpx (deploy: **OCI VM** + Docker typical) | REST API, validation |
+| **LLM** | **Ollama**, **Qwen 2.5 3B** | **No commercial LLM API** in default path |
+| **Embeddings** | Optional: **Ollama** `nomic-embed-text` | Local semantic search when enabled |
+| **STT** | **Faster-Whisper** (`tiny` default in compose) | Local speech-to-text |
+| **TTS** | **Piper** (`en_US-ryan-low` in image) | Local text-to-speech |
+| **Retrieval** | scikit-learn (**TF-IDF** default) | Fast keyword RAG without extra pulls |
 | **Session** | In-memory dict (Redis-ready) | Conversation history |
 | **Data** | Markdown (raw) + JSON (processed) | Source content |
 | **Dev** | Docker, Docker Compose, pytest | Containerization & testing |
@@ -610,9 +639,9 @@ Optional: `INGEST_REPO_ROOT=/path/to/repo` if you run the module from another wo
 
 **Retrieval** (chat uses RAG over `data/processed/chunks.json`):
 
-- Default: **TF–IDF** + cosine similarity (no API key). Set `RETRIEVAL_BACKEND=tfidf` to force it.
-- With **`OPENAI_API_KEY`**: `RETRIEVAL_BACKEND=auto` uses OpenAI embeddings (`OPENAI_EMBEDDING_MODEL`, `OPENAI_BASE_URL`).
-- **`OPENAI_CHAT_MODEL`** (e.g. `gpt-4o-mini`) powers grounded answers; without a key, the API returns excerpt-only fallbacks with citations.
+- **Default production path:** **TF–IDF** + cosine similarity (`RETRIEVAL_BACKEND=tfidf` in compose) — **no API keys**. Chat answers use **Ollama** (`OLLAMA_CHAT_MODEL`, e.g. `qwen2.5:3b`) — still **no commercial LLM API**; see [Default stack: no OpenAI / Anthropic / Gemini APIs](#default-stack-no-openai--anthropic--gemini-apis).
+- **Optional semantic RAG:** set `RETRIEVAL_BACKEND=ollama` (or your project’s `auto` behavior) and ensure **`nomic-embed-text`** (or another embed model) is pulled in Ollama.
+- **Optional OpenAI-compatible mode** (not the highlighted deploy): with keys and the right env vars, some setups can use hosted embeddings/chat — only if you configure it explicitly.
 - `CHUNKS_JSON_PATH` overrides the default path to `chunks.json`.
 
 API routes: `GET /health`, `POST /api/chat` (JSON body: `question`, optional `session_id`; response includes grounded `answer`, `confidence`, `sources`, `grounding_note`, `retrieval`, optional `retrieval_error`).
@@ -690,9 +719,9 @@ docker compose exec backend /bin/bash
 Backend settings are configured via `backend/.env` (copy from `backend/.env.example`):
 
 ```bash
-# backend/.env
-OPENAI_API_KEY=sk-...  # Optional; enables OpenAI embeddings & LLM
-TTS_PROVIDER=mock      # "mock" or "f5-tts" when available
+# backend/.env (examples — default deploy uses Ollama + Piper, not OpenAI)
+# OPENAI_API_KEY=sk-...  # Optional only if you wire OpenAI-compatible providers
+# TTS_PROVIDER=piper     # Default in Docker; mock for silent tests
 ```
 
 Frontend settings are configured via `frontend/.env.local` (copy from `frontend/.env.example`):
